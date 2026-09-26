@@ -12,10 +12,8 @@ export const config = {
   xp: {
     /** xp requis pour atteindre `level` depuis 0. */
     xpForLevel: (level: number) => Math.round(100 * level ** 1.5),
-    /** XP gagné pour une mission, avant multiplicateurs de durée. */
+    /** XP gagné pour une mission, avant multiplicateurs de durée. Seule source de progression : pas l'entraînement. */
     baseMissionXp: 20,
-    trainingWinXp: 15,
-    trainingLossXp: 5,
     pointsPerLevel: 3,
   },
 

@@ -28,7 +28,7 @@ export default function Arene() {
   const attackMonster = useGameStore((s) => s.attackMonster)
 
   const [selectedHero, setSelectedHero] = useState(heroIds[0])
-  const [lastResult, setLastResult] = useState<{ won: boolean; xpGained: number } | null>(null)
+  const [lastResult, setLastResult] = useState<{ won: boolean } | null>(null)
   const [lastAttack, setLastAttack] = useState<{ damage: number } | null>(null)
 
   const hero = heroes.find((h) => h.permanent.id === selectedHero)
@@ -62,7 +62,10 @@ export default function Arene() {
       </Panel>
 
       <Panel title="Entraînement">
-        <p className="mb-3 text-sm text-neutral-500">Combat contre une IA générée, pour gagner de l'XP.</p>
+        <p className="mb-3 text-sm text-neutral-500">
+          Combat d'essai contre une IA générée. Ne fait pas progresser le héros — seules les
+          missions donnent de l'XP.
+        </p>
         <Button
           onClick={() => {
             const result = trainHero(selectedHero)
@@ -73,7 +76,7 @@ export default function Arene() {
         </Button>
         {lastResult && (
           <p className={`mt-3 text-sm ${lastResult.won ? 'text-emerald-400' : 'text-red-400'}`}>
-            {lastResult.won ? 'Victoire' : 'Défaite'} — +{lastResult.xpGained} XP
+            {lastResult.won ? 'Victoire' : 'Défaite'}
           </p>
         )}
       </Panel>

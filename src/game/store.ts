@@ -72,7 +72,7 @@ interface GameState {
   fuseEquipmentItems: (instanceIds: string[]) => void
   fuseHeroes: (heroIds: string[]) => void
 
-  trainHero: (heroId: string) => { won: boolean; xpGained: number } | undefined
+  trainHero: (heroId: string) => { won: boolean } | undefined
   attackMonster: (heroId: string, monsterId: string) => { damage: number } | undefined
 
   // Debug
@@ -281,15 +281,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     const opponent: CombatantInput = { id: 'adversaire-entrainement', level: hero.progression.level, attributes }
     const seed = hashString(`${heroId}-training-${state.now}`)
     const outcome = resolveCombat({ id: heroId, level: hero.progression.level, attributes }, opponent, seed)
-    const won = outcome.winnerId === heroId
-    const xpGained = won ? config.xp.trainingWinXp : config.xp.trainingLossXp
-    const xpResult = applyXpGain(hero.progression, xpGained, heroLevelCap(hero))
 
-    set({
-      heroes: state.heroes.map((h) => (h.permanent.id === heroId ? { ...h, progression: xpResult.progression } : h)),
-    })
-
-    return { won, xpGained }
+    return { won: outcome.winnerId === heroId }
   },
 
   attackMonster: (heroId, monsterId) => {
