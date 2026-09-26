@@ -1,5 +1,6 @@
 import type {
   MissionDurationId,
+  Rarity,
   Recipe,
   ResourceDef,
   SmeltingRecipe,
@@ -30,14 +31,43 @@ export const config = {
     tiers: [10, 25, 50] as const,
   },
 
-  fusion: {
-    /** Fraction des attributs de base transférée en bonus saisonnier (non implémenté, phase ultérieure). */
-    transferRatio: 0.1,
+  heroes: {
+    /** Niveau maximum d'un héros selon sa rareté (verrou de fusion). */
+    levelCapByRarity: {
+      commun: 10,
+      peu_commun: 20,
+      rare: 30,
+      epique: 45,
+      legendaire: 60,
+    } satisfies Record<Rarity, number>,
+    /** Fourchette de la somme des attributs de base à la création (cahier des charges §4). */
+    attributeSumRangeByRarity: {
+      commun: [50, 70],
+      peu_commun: [70, 90],
+      rare: [90, 115],
+      epique: [115, 140],
+      legendaire: [150, 170],
+    } satisfies Record<Rarity, [number, number]>,
   },
 
   equipment: {
-    /** Si vrai, l'équipement porte un season_id et devient inutilisable la saison suivante. */
-    seasonal: true,
+    /** Niveau maximum d'un équipement selon sa rareté (verrou de fusion). */
+    levelCapByRarity: {
+      commun: 5,
+      peu_commun: 8,
+      rare: 12,
+      epique: 18,
+      legendaire: 25,
+    } satisfies Record<Rarity, number>,
+    /** Croissance du bonus par niveau au-delà du niveau 1 (fraction du bonus de base). */
+    bonusGrowthPerLevel: 0.15,
+    /** Coût pour passer du niveau N à N+1 = ingrédients de base × (N × ce facteur). */
+    upgradeCostGrowthPerLevel: 1,
+  },
+
+  fusion: {
+    /** Nombre de NFT de même rareté, au niveau max, nécessaires pour en fusionner un de rareté supérieure. */
+    itemsRequired: 3,
   },
 
   missions: {
@@ -73,7 +103,7 @@ export const zones: Record<ZoneId, {
 }> = {
   foret: { name: 'Forêt', recommendedLevel: 0, resourceIds: ['bois', 'herbes', 'cuir'] },
   mine: { name: 'Mine', recommendedLevel: 5, resourceIds: ['minerai_fer', 'pierre', 'cristal'] },
-  marais: { name: 'Marais', recommendedLevel: 15, resourceIds: ['ecailles', 'os_monstre', 'herbes'] },
+  marais: { name: 'Marais', resourceIds: ['ecailles', 'os_monstre', 'herbes'], recommendedLevel: 15 },
   volcan: { name: 'Volcan', recommendedLevel: 30, resourceIds: ['essence_feu', 'mithril', 'coeur_dragon'] },
 }
 
@@ -108,117 +138,37 @@ export const smeltingRecipes: SmeltingRecipe[] = [
   },
 ]
 
+/**
+ * Gabarits d'équipement : un par (emplacement × rareté), soit 5 rangs par emplacement.
+ * Chaque objet fabriqué à partir d'un gabarit est un NFT permanent (niveau 1 au départ) qui
+ * monte de niveau avec des ressources et peut être fusionné à rareté égale (voir logic/rarity.ts).
+ */
 export const recipes: Recipe[] = [
-  {
-    id: 'epee_fer',
-    name: 'Épée en fer',
-    slot: 'arme',
-    ingredients: [{ resourceId: 'minerai_fer', quantity: 3 }, { resourceId: 'bois', quantity: 1 }],
-    effect: { bonus: { strength: 4 } },
-  },
-  {
-    id: 'armure_cuir',
-    name: 'Armure de cuir',
-    slot: 'armure',
-    ingredients: [{ resourceId: 'cuir', quantity: 5 }],
-    effect: { bonus: { agility: 4 } },
-  },
-  {
-    id: 'bouclier_ecailles',
-    name: "Bouclier d'écailles",
-    slot: 'bouclier',
-    ingredients: [{ resourceId: 'ecailles', quantity: 4 }, { resourceId: 'bois', quantity: 2 }],
-    effect: { bonus: { health: 5 } },
-  },
-  {
-    id: 'amulette_cristal',
-    name: 'Amulette de cristal',
-    slot: 'amulette',
-    ingredients: [{ resourceId: 'cristal', quantity: 1 }, { resourceId: 'os_monstre', quantity: 2 }],
-    effect: { bonus: { luck: 5 } },
-  },
-  {
-    id: 'potion_energie',
-    name: "Potion d'énergie",
-    slot: 'amulette',
-    ingredients: [{ resourceId: 'herbes', quantity: 3 }],
-    effect: { bonus: { energy: 6 }, special: 'temporaire' },
-  },
-  {
-    id: 'lame_feu',
-    name: 'Lame de feu',
-    slot: 'arme',
-    ingredients: [{ resourceId: 'mithril', quantity: 2 }, { resourceId: 'essence_feu', quantity: 1 }],
-    effect: { bonus: { strength: 8 }, special: 'brulure' },
-  },
-  {
-    id: 'armure_acier',
-    name: "Armure d'acier",
-    slot: 'armure',
-    ingredients: [{ resourceId: 'acier', quantity: 4 }, { resourceId: 'cuir', quantity: 2 }],
-    effect: { bonus: { health: 7 } },
-  },
-  {
-    id: 'bouclier_glace',
-    name: 'Bouclier de glace',
-    slot: 'bouclier',
-    ingredients: [{ resourceId: 'essence_glace', quantity: 2 }, { resourceId: 'acier', quantity: 2 }],
-    effect: { bonus: { health: 6, agility: 2 } },
-  },
-  {
-    id: 'amulette_foudre',
-    name: 'Amulette de foudre',
-    slot: 'amulette',
-    ingredients: [{ resourceId: 'essence_foudre', quantity: 2 }, { resourceId: 'cristal', quantity: 1 }],
-    effect: { bonus: { agility: 5, luck: 2 } },
-  },
-  {
-    id: 'arc_plume_phenix',
-    name: 'Arc de plume de phénix',
-    slot: 'arme',
-    ingredients: [{ resourceId: 'plume_phenix', quantity: 1 }, { resourceId: 'bois', quantity: 3 }],
-    effect: { bonus: { agility: 6, strength: 2 } },
-  },
-  {
-    id: 'armure_ecailles',
-    name: "Armure d'écailles",
-    slot: 'armure',
-    ingredients: [{ resourceId: 'ecailles', quantity: 6 }, { resourceId: 'cuir', quantity: 2 }],
-    effect: { bonus: { health: 5, agility: 2 } },
-  },
-  {
-    id: 'bouclier_mithril',
-    name: 'Bouclier de mithril',
-    slot: 'bouclier',
-    ingredients: [{ resourceId: 'mithril', quantity: 3 }],
-    effect: { bonus: { health: 10, strength: 2 } },
-  },
-  {
-    id: 'amulette_coeur_dragon',
-    name: 'Amulette du cœur de dragon',
-    slot: 'amulette',
-    ingredients: [{ resourceId: 'coeur_dragon', quantity: 1 }, { resourceId: 'fragment_etoile', quantity: 1 }],
-    effect: { bonus: { luck: 10, strength: 5, health: 5, energy: 5, agility: 5 } },
-  },
-  {
-    id: 'epee_mithril',
-    name: 'Épée de mithril',
-    slot: 'arme',
-    ingredients: [{ resourceId: 'mithril', quantity: 2 }, { resourceId: 'acier', quantity: 2 }],
-    effect: { bonus: { strength: 9 } },
-  },
-  {
-    id: 'armure_fragment_etoile',
-    name: "Armure de fragment d'étoile",
-    slot: 'armure',
-    ingredients: [{ resourceId: 'fragment_etoile', quantity: 1 }, { resourceId: 'acier', quantity: 3 }],
-    effect: { bonus: { health: 9, luck: 3 } },
-  },
-  {
-    id: 'bouclier_pierre',
-    name: 'Bouclier de pierre',
-    slot: 'bouclier',
-    ingredients: [{ resourceId: 'pierre', quantity: 5 }],
-    effect: { bonus: { health: 4 } },
-  },
+  // Arme (bonus de Force)
+  { id: 'arme_commun', name: 'Épée en fer', slot: 'arme', rarity: 'commun', ingredients: [{ resourceId: 'minerai_fer', quantity: 3 }, { resourceId: 'bois', quantity: 1 }], effect: { bonus: { strength: 4 } } },
+  { id: 'arme_peu_commun', name: "Épée d'acier", slot: 'arme', rarity: 'peu_commun', ingredients: [{ resourceId: 'acier', quantity: 3 }, { resourceId: 'bois', quantity: 1 }], effect: { bonus: { strength: 7 } } },
+  { id: 'arme_rare', name: 'Lame de feu', slot: 'arme', rarity: 'rare', ingredients: [{ resourceId: 'mithril', quantity: 2 }, { resourceId: 'essence_feu', quantity: 1 }], effect: { bonus: { strength: 11 } } },
+  { id: 'arme_epique', name: 'Épée de mithril', slot: 'arme', rarity: 'epique', ingredients: [{ resourceId: 'mithril', quantity: 3 }, { resourceId: 'acier', quantity: 2 }], effect: { bonus: { strength: 16 } } },
+  { id: 'arme_legendaire', name: 'Lame du cœur de dragon', slot: 'arme', rarity: 'legendaire', ingredients: [{ resourceId: 'coeur_dragon', quantity: 1 }, { resourceId: 'fragment_etoile', quantity: 1 }], effect: { bonus: { strength: 24 } } },
+
+  // Armure (bonus de Santé)
+  { id: 'armure_commun', name: 'Armure de cuir', slot: 'armure', rarity: 'commun', ingredients: [{ resourceId: 'cuir', quantity: 5 }], effect: { bonus: { health: 4 } } },
+  { id: 'armure_peu_commun', name: "Armure d'acier", slot: 'armure', rarity: 'peu_commun', ingredients: [{ resourceId: 'acier', quantity: 4 }, { resourceId: 'cuir', quantity: 2 }], effect: { bonus: { health: 7 } } },
+  { id: 'armure_rare', name: "Armure d'écailles", slot: 'armure', rarity: 'rare', ingredients: [{ resourceId: 'ecailles', quantity: 6 }, { resourceId: 'cuir', quantity: 2 }], effect: { bonus: { health: 11 } } },
+  { id: 'armure_epique', name: "Armure de fragment d'étoile", slot: 'armure', rarity: 'epique', ingredients: [{ resourceId: 'fragment_etoile', quantity: 1 }, { resourceId: 'acier', quantity: 3 }], effect: { bonus: { health: 16 } } },
+  { id: 'armure_legendaire', name: 'Armure du cœur de dragon', slot: 'armure', rarity: 'legendaire', ingredients: [{ resourceId: 'coeur_dragon', quantity: 1 }, { resourceId: 'acier', quantity: 4 }], effect: { bonus: { health: 24 } } },
+
+  // Bouclier (bonus de Santé + Agilité)
+  { id: 'bouclier_commun', name: 'Bouclier de pierre', slot: 'bouclier', rarity: 'commun', ingredients: [{ resourceId: 'pierre', quantity: 5 }], effect: { bonus: { health: 4, agility: 1 } } },
+  { id: 'bouclier_peu_commun', name: "Bouclier d'écailles", slot: 'bouclier', rarity: 'peu_commun', ingredients: [{ resourceId: 'ecailles', quantity: 4 }, { resourceId: 'bois', quantity: 2 }], effect: { bonus: { health: 7, agility: 2 } } },
+  { id: 'bouclier_rare', name: 'Bouclier de glace', slot: 'bouclier', rarity: 'rare', ingredients: [{ resourceId: 'essence_glace', quantity: 2 }, { resourceId: 'acier', quantity: 2 }], effect: { bonus: { health: 11, agility: 3 } } },
+  { id: 'bouclier_epique', name: 'Bouclier de mithril', slot: 'bouclier', rarity: 'epique', ingredients: [{ resourceId: 'mithril', quantity: 3 }], effect: { bonus: { health: 16, agility: 5 } } },
+  { id: 'bouclier_legendaire', name: "Bouclier du fragment d'étoile", slot: 'bouclier', rarity: 'legendaire', ingredients: [{ resourceId: 'fragment_etoile', quantity: 1 }, { resourceId: 'mithril', quantity: 2 }], effect: { bonus: { health: 24, agility: 7 } } },
+
+  // Amulette (bonus de Chance)
+  { id: 'amulette_commun', name: 'Amulette de bois', slot: 'amulette', rarity: 'commun', ingredients: [{ resourceId: 'bois', quantity: 4 }], effect: { bonus: { luck: 4 } } },
+  { id: 'amulette_peu_commun', name: "Amulette d'os", slot: 'amulette', rarity: 'peu_commun', ingredients: [{ resourceId: 'os_monstre', quantity: 2 }, { resourceId: 'bois', quantity: 2 }], effect: { bonus: { luck: 7 } } },
+  { id: 'amulette_rare', name: 'Amulette de cristal', slot: 'amulette', rarity: 'rare', ingredients: [{ resourceId: 'cristal', quantity: 1 }, { resourceId: 'os_monstre', quantity: 2 }], effect: { bonus: { luck: 11 } } },
+  { id: 'amulette_epique', name: 'Amulette de foudre', slot: 'amulette', rarity: 'epique', ingredients: [{ resourceId: 'essence_foudre', quantity: 2 }, { resourceId: 'cristal', quantity: 1 }], effect: { bonus: { luck: 16 } } },
+  { id: 'amulette_legendaire', name: 'Amulette du cœur de dragon', slot: 'amulette', rarity: 'legendaire', ingredients: [{ resourceId: 'coeur_dragon', quantity: 1 }, { resourceId: 'fragment_etoile', quantity: 1 }], effect: { bonus: { luck: 24 } } },
 ]

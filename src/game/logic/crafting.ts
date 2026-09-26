@@ -29,7 +29,6 @@ export interface CraftResult {
 export function craft(
   stock: ResourceStock,
   recipeId: string,
-  seasonId: number,
   idFactory: () => string = () => crypto.randomUUID(),
 ): CraftResult {
   const recipe = recipes.find((r) => r.id === recipeId)
@@ -39,7 +38,7 @@ export function craft(
   }
   return {
     stock: consumeIngredients(stock, recipe.ingredients),
-    item: { instanceId: idFactory(), recipeId: recipe.id, seasonId },
+    item: { instanceId: idFactory(), recipeId: recipe.id, level: 1 },
   }
 }
 

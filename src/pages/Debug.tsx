@@ -15,6 +15,7 @@ export default function Debug() {
   const finishMissionInstantly = useGameStore((s) => s.finishMissionInstantly)
   const jumpToTournament = useGameStore((s) => s.jumpToTournament)
   const startNewSeason = useGameStore((s) => s.startNewSeason)
+  const grantResources = useGameStore((s) => s.grantResources)
 
   const activeMissions = missions.filter((m) => !m.claimed && m.endsAt > now)
 
@@ -51,9 +52,20 @@ export default function Debug() {
         </div>
       </Panel>
 
+      <Panel title="Ressources">
+        <p className="mb-3 text-sm text-neutral-500">
+          Pour tester l'amélioration et la fusion d'équipement sans passer par des dizaines de missions.
+        </p>
+        <Button variant="secondary" onClick={() => grantResources(100)}>+ 100 de chaque ressource</Button>
+      </Panel>
+
       <Panel title="Saison">
+        <p className="mb-3 text-sm text-neutral-500">
+          Les héros et l'équipement gardent toute leur progression : une nouvelle saison ne fait
+          qu'ouvrir un nouveau tournoi et relancer le classement.
+        </p>
         <Button variant="danger" onClick={startNewSeason}>
-          Démarrer une nouvelle saison (reset paresseux des héros)
+          Démarrer une nouvelle saison
         </Button>
       </Panel>
     </div>

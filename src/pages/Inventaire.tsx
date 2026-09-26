@@ -1,4 +1,4 @@
-import { recipes, resources } from '../game/config'
+import { config, recipes, resources } from '../game/config'
 import { useGameStore } from '../game/store'
 import { Panel } from '../ui/Panel'
 
@@ -9,11 +9,18 @@ const rarityColor: Record<string, string> = {
   legendaire: 'text-amber-400',
 }
 
+const equipmentRarityColor: Record<string, string> = {
+  commun: 'text-neutral-300',
+  peu_commun: 'text-emerald-400',
+  rare: 'text-sky-400',
+  epique: 'text-purple-400',
+  legendaire: 'text-amber-400',
+}
+
 export default function Inventaire() {
   const resourceStock = useGameStore((s) => s.resources)
   const equipment = useGameStore((s) => s.equipmentInventory)
   const equippedByHero = useGameStore((s) => s.equippedByHero)
-  const currentSeasonId = useGameStore((s) => s.currentSeasonId)
 
   const equippedInstanceIds = new Set(
     Object.values(equippedByHero).flatMap((slots) => Object.values(slots).filter(Boolean)),
@@ -35,12 +42,16 @@ export default function Inventaire() {
       </Panel>
 
       <Panel title="Équipement">
+        <p className="mb-3 text-sm text-neutral-500">
+          NFT permanents : ils ne périment jamais entre les saisons. Amélioration et fusion se
+          gèrent depuis l'Atelier.
+        </p>
         {equipment.length === 0 && <p className="text-neutral-500">Aucun équipement fabriqué.</p>}
         <div className="space-y-2">
           {equipment.map((item) => {
             const recipe = recipes.find((r) => r.id === item.recipeId)
             const isEquipped = equippedInstanceIds.has(item.instanceId)
-            const usable = !item.seasonId || item.seasonId === currentSeasonId
+            const cap = recipe ? config.equipment.levelCapByRarity[recipe.rarity] : undefined
             return (
               <div
                 key={item.instanceId}
@@ -48,11 +59,16 @@ export default function Inventaire() {
               >
                 <div>
                   <span className="font-medium">{recipe?.name ?? item.recipeId}</span>
-                  <span className="ml-2 text-xs text-neutral-500">({recipe?.slot})</span>
+                  <span className={`ml-2 text-xs ${recipe ? equipmentRarityColor[recipe.rarity] : ''}`}>
+                    {recipe?.rarity} · {recipe?.slot}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
+                  <span className="text-neutral-500">
+                    Niveau {item.level}
+                    {cap !== undefined && <span className="text-neutral-600"> / {cap}</span>}
+                  </span>
                   {isEquipped && <span className="text-amber-400">Équipé</span>}
-                  {!usable && <span className="text-red-400">Périmé (saison précédente)</span>}
                 </div>
               </div>
             )

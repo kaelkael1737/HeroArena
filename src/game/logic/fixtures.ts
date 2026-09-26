@@ -15,8 +15,7 @@ export function makeHero(overrides: Partial<Hero> = {}): Hero {
       base: makeAttributes(),
       rarityScore: 50,
     },
-    seasonal: {
-      seasonId: 1,
+    progression: {
       level: 0,
       xp: 0,
       unspentPoints: 0,

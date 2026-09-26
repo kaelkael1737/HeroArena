@@ -1,16 +1,20 @@
 import { create } from 'zustand'
-import { config, recipes } from './config'
+import { config, recipes, resources as resourceDefs } from './config'
 import { getEffectiveAttributes } from './logic/attributes'
+import { resolveCombat } from './logic/combat'
+import type { CombatantInput } from './logic/combat'
 import type { ResourceStock } from './logic/crafting'
 import { craft, smelt } from './logic/crafting'
+import { canFuseEquipment, canUpgradeEquipment, fuseEquipment, upgradeEquipment } from './logic/equipment'
+import { generateHero } from './logic/heroGenerator'
 import {
   canStartMission,
   isMissionComplete,
   resolveMission,
   startMission as startMissionLogic,
 } from './logic/missions'
+import { nextRarity } from './logic/rarity'
 import { createRng } from './logic/rng'
-import { applySeasonReset } from './logic/season'
 import {
   createBracket,
   getChampion,
@@ -20,10 +24,6 @@ import {
 } from './logic/tournament'
 import { applyXpGain } from './logic/xp'
 import { heroes as startingHeroes } from './data/heroes'
-import { resolveCombat } from './logic/combat'
-import type {
-  CombatantInput,
-} from './logic/combat'
 import type {
   EquipmentItem,
   EquipmentSlot,
@@ -59,6 +59,9 @@ interface GameState {
   smeltResource: (smeltingRecipeId: string) => void
   equipItem: (heroId: string, instanceId: string) => void
   unequipItem: (heroId: string, slot: EquipmentSlot) => void
+  upgradeEquipmentItem: (instanceId: string) => void
+  fuseEquipmentItems: (instanceIds: string[]) => void
+  fuseHeroes: (heroIds: string[]) => void
 
   startTournament: () => void
   runTournamentRound: () => void
@@ -70,10 +73,11 @@ interface GameState {
   advanceTime: (ms: number) => void
   finishMissionInstantly: (missionId: string) => void
   jumpToTournament: () => void
+  grantResources: (amount: number) => void
 }
 
-function touchHero(heroes: Hero[], heroId: string, currentSeasonId: number): Hero[] {
-  return heroes.map((h) => (h.permanent.id === heroId ? applySeasonReset(h, currentSeasonId) : h))
+function heroLevelCap(hero: Hero): number {
+  return config.heroes.levelCapByRarity[hero.permanent.rarity]
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -87,10 +91,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   missions: [],
   tournament: null,
 
-  getHero: (heroId) => {
-    const state = get()
-    return applySeasonReset0(state.heroes.find((h) => h.permanent.id === heroId), state.currentSeasonId)
-  },
+  getHero: (heroId) => get().heroes.find((h) => h.permanent.id === heroId),
 
   getEquippedItems: (heroId) => {
     const state = get()
@@ -105,55 +106,50 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get()
     const hero = state.getHero(heroId)
     if (!hero) return undefined
-    return getEffectiveAttributes(hero, state.getEquippedItems(heroId), state.currentSeasonId)
+    return getEffectiveAttributes(hero, state.getEquippedItems(heroId))
   },
 
   allocatePoint: (heroId, attribute) => {
-    set((state) => {
-      const heroes = touchHero(state.heroes, heroId, state.currentSeasonId)
-      return {
-        heroes: heroes.map((h) => {
-          if (h.permanent.id !== heroId) return h
-          if (h.seasonal.unspentPoints <= 0) return h
-          return {
-            ...h,
-            seasonal: {
-              ...h.seasonal,
-              unspentPoints: h.seasonal.unspentPoints - 1,
-              bonus: { ...h.seasonal.bonus, [attribute]: h.seasonal.bonus[attribute] + 1 },
-            },
-          }
-        }),
-      }
-    })
+    set((state) => ({
+      heroes: state.heroes.map((h) => {
+        if (h.permanent.id !== heroId) return h
+        if (h.progression.unspentPoints <= 0) return h
+        return {
+          ...h,
+          progression: {
+            ...h.progression,
+            unspentPoints: h.progression.unspentPoints - 1,
+            bonus: { ...h.progression.bonus, [attribute]: h.progression.bonus[attribute] + 1 },
+          },
+        }
+      }),
+    }))
   },
 
   startMission: (heroId, zoneId, durationId) => {
     const state = get()
-    const heroesAfterTouch = touchHero(state.heroes, heroId, state.currentSeasonId)
-    const hero = heroesAfterTouch.find((h) => h.permanent.id === heroId)
+    const hero = state.getHero(heroId)
     if (!hero) return
     const activeForHero = state.missions.filter((m) => m.heroId === heroId && !m.claimed)
     if (!canStartMission(hero, activeForHero)) return
     const mission = startMissionLogic(hero, zoneId, durationId, state.now)
-    set({ heroes: heroesAfterTouch, missions: [...state.missions, mission] })
+    set({ missions: [...state.missions, mission] })
   },
 
   claimMission: (missionId) => {
     const state = get()
     const mission = state.missions.find((m) => m.id === missionId)
     if (!mission || mission.claimed || !isMissionComplete(mission, state.now)) return
-    const heroesAfterTouch = touchHero(state.heroes, mission.heroId, state.currentSeasonId)
-    const hero = heroesAfterTouch.find((h) => h.permanent.id === mission.heroId)
+    const hero = state.getHero(mission.heroId)
     if (!hero) return
 
     const rng = createRng(mission.startedAt + hashString(mission.id))
     const rewards = resolveMission(hero, mission, rng)
-    const xpResult = applyXpGain(hero.seasonal, rewards.xp)
+    const xpResult = applyXpGain(hero.progression, rewards.xp, heroLevelCap(hero))
 
     set({
-      heroes: heroesAfterTouch.map((h) =>
-        h.permanent.id === hero.permanent.id ? { ...h, seasonal: xpResult.seasonal } : h,
+      heroes: state.heroes.map((h) =>
+        h.permanent.id === hero.permanent.id ? { ...h, progression: xpResult.progression } : h,
       ),
       resources: mergeResources(state.resources, rewards.resources),
       missions: state.missions.map((m) => (m.id === missionId ? { ...m, claimed: true } : m)),
@@ -162,7 +158,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   craftItem: (recipeId) => {
     const state = get()
-    const result = craft(state.resources, recipeId, state.currentSeasonId)
+    const result = craft(state.resources, recipeId)
     set({
       resources: result.stock,
       equipmentInventory: [...state.equipmentInventory, result.item],
@@ -195,12 +191,72 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ equippedByHero: { ...state.equippedByHero, [heroId]: current } })
   },
 
+  upgradeEquipmentItem: (instanceId) => {
+    const state = get()
+    const item = state.equipmentInventory.find((i) => i.instanceId === instanceId)
+    if (!item || !canUpgradeEquipment(state.resources, item)) return
+    const result = upgradeEquipment(state.resources, item)
+    set({
+      resources: result.stock,
+      equipmentInventory: state.equipmentInventory.map((i) => (i.instanceId === instanceId ? result.item : i)),
+    })
+  },
+
+  fuseEquipmentItems: (instanceIds) => {
+    const state = get()
+    const items = instanceIds
+      .map((id) => state.equipmentInventory.find((i) => i.instanceId === id))
+      .filter((i): i is EquipmentItem => Boolean(i))
+    if (items.length !== instanceIds.length || !canFuseEquipment(items)) return
+    const fused = fuseEquipment(items)
+
+    const nextEquippedByHero = { ...state.equippedByHero }
+    for (const [heroId, slots] of Object.entries(nextEquippedByHero)) {
+      const cleaned = { ...slots }
+      for (const [slot, instanceId] of Object.entries(cleaned)) {
+        if (instanceId && instanceIds.includes(instanceId)) delete cleaned[slot as EquipmentSlot]
+      }
+      nextEquippedByHero[heroId] = cleaned
+    }
+
+    set({
+      equipmentInventory: [
+        ...state.equipmentInventory.filter((i) => !instanceIds.includes(i.instanceId)),
+        fused,
+      ],
+      equippedByHero: nextEquippedByHero,
+    })
+  },
+
+  fuseHeroes: (heroIds) => {
+    const state = get()
+    const items = heroIds
+      .map((id) => state.heroes.find((h) => h.permanent.id === id))
+      .filter((h): h is Hero => Boolean(h))
+    if (items.length !== heroIds.length || items.length !== config.fusion.itemsRequired) return
+
+    const rarity = items[0].permanent.rarity
+    const cap = config.heroes.levelCapByRarity[rarity]
+    const eligible = items.every((h) => h.permanent.rarity === rarity && h.progression.level >= cap)
+    if (!eligible) return
+    const targetRarity = nextRarity(rarity)
+    if (!targetRarity) return
+
+    const seed = hashString(`${heroIds.join('-')}-${state.now}`)
+    const newHero = generateHero(targetRarity, createRng(seed), crypto.randomUUID())
+
+    const nextEquippedByHero = { ...state.equippedByHero }
+    for (const heroId of heroIds) delete nextEquippedByHero[heroId]
+
+    set({
+      heroes: [...state.heroes.filter((h) => !heroIds.includes(h.permanent.id)), newHero],
+      equippedByHero: nextEquippedByHero,
+    })
+  },
+
   startTournament: () => {
     const state = get()
-    const competitors = state.heroes.map((h) => {
-      const hero = applySeasonReset0(h, state.currentSeasonId)!
-      return { id: hero.permanent.id, level: hero.seasonal.level }
-    })
+    const competitors = state.heroes.map((h) => ({ id: h.permanent.id, level: h.progression.level }))
     set({ tournament: createBracket(state.currentSeasonId, competitors) })
   },
 
@@ -210,8 +266,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const combatants: Record<string, CombatantInput> = {}
     for (const hero of state.heroes) {
       const attrs = state.getEffectiveAttributes(hero.permanent.id)
-      const level = state.getHero(hero.permanent.id)?.seasonal.level ?? 1
-      if (attrs) combatants[hero.permanent.id] = { id: hero.permanent.id, level, attributes: attrs }
+      if (attrs) combatants[hero.permanent.id] = { id: hero.permanent.id, level: hero.progression.level, attributes: attrs }
     }
 
     const currentRound = state.tournament.rounds[state.tournament.rounds.length - 1]
@@ -233,26 +288,19 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   trainHero: (heroId) => {
     const state = get()
-    const heroesAfterTouch = touchHero(state.heroes, heroId, state.currentSeasonId)
-    const hero = heroesAfterTouch.find((h) => h.permanent.id === heroId)
+    const hero = state.getHero(heroId)
     if (!hero) return undefined
 
-    const attributes = getEffectiveAttributes(hero, state.getEquippedItems(heroId), state.currentSeasonId)
-    const opponent: CombatantInput = {
-      id: 'adversaire-entrainement',
-      level: hero.seasonal.level,
-      attributes,
-    }
+    const attributes = getEffectiveAttributes(hero, state.getEquippedItems(heroId))
+    const opponent: CombatantInput = { id: 'adversaire-entrainement', level: hero.progression.level, attributes }
     const seed = hashString(`${heroId}-training-${state.now}`)
-    const outcome = resolveCombat({ id: heroId, level: hero.seasonal.level, attributes }, opponent, seed)
+    const outcome = resolveCombat({ id: heroId, level: hero.progression.level, attributes }, opponent, seed)
     const won = outcome.winnerId === heroId
     const xpGained = won ? config.xp.trainingWinXp : config.xp.trainingLossXp
-    const xpResult = applyXpGain(hero.seasonal, xpGained)
+    const xpResult = applyXpGain(hero.progression, xpGained, heroLevelCap(hero))
 
     set({
-      heroes: heroesAfterTouch.map((h) =>
-        h.permanent.id === heroId ? { ...h, seasonal: xpResult.seasonal } : h,
-      ),
+      heroes: state.heroes.map((h) => (h.permanent.id === heroId ? { ...h, progression: xpResult.progression } : h)),
     })
 
     return { won, xpGained }
@@ -279,12 +327,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       now: state.seasonStartedAt + config.season.durationDays * DAY_MS,
     })),
-}))
 
-function applySeasonReset0(hero: Hero | undefined, currentSeasonId: number): Hero | undefined {
-  if (!hero) return undefined
-  return applySeasonReset(hero, currentSeasonId)
-}
+  grantResources: (amount) =>
+    set((state) => {
+      const next = { ...state.resources }
+      for (const resource of resourceDefs) next[resource.id] = (next[resource.id] ?? 0) + amount
+      return { resources: next }
+    }),
+}))
 
 function mergeResources(stock: ResourceStock, gained: Record<string, number>): ResourceStock {
   const next = { ...stock }

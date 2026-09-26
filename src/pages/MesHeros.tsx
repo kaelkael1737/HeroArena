@@ -1,10 +1,10 @@
-import { useMemo } from 'react'
+import { config } from '../game/config'
 import { getTotalAttributes } from '../game/logic/attributes'
-import { applySeasonReset } from '../game/logic/season'
+import { nextRarity } from '../game/logic/rarity'
 import { useGameStore } from '../game/store'
-import type { HeroAttributes, Rarity } from '../game/types'
+import type { Hero, HeroAttributes, Rarity } from '../game/types'
 import { HeroAvatar } from '../ui/HeroAvatar'
-import { Panel } from '../ui/Panel'
+import { Button, Panel } from '../ui/Panel'
 
 const rarityOrder: Record<Rarity, number> = {
   legendaire: 0,
@@ -22,7 +22,7 @@ const attributeLabels: Record<keyof HeroAttributes, string> = {
   agility: 'Agilité',
 }
 
-const rarityLabels: Record<string, string> = {
+const rarityLabels: Record<Rarity, string> = {
   commun: 'Commun',
   peu_commun: 'Peu commun',
   rare: 'Rare',
@@ -32,40 +32,33 @@ const rarityLabels: Record<string, string> = {
 
 export default function MesHeros() {
   const heroes = useGameStore((s) => s.heroes)
-  const heroIds = [...heroes]
+  const sortedHeroIds = [...heroes]
     .sort((a, b) => rarityOrder[a.permanent.rarity] - rarityOrder[b.permanent.rarity])
     .map((h) => h.permanent.id)
-  const currentSeasonId = useGameStore((s) => s.currentSeasonId)
 
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Mes héros</h1>
       <p className="text-sm text-neutral-500">
-        Saison {currentSeasonId}. Les héros non touchés depuis le début de la saison repartent
-        automatiquement à zéro (niveau, XP, bonus) au premier usage.
+        Les héros gardent toute leur progression en permanence, saison après saison.
       </p>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {heroIds.map((id) => (
+        {sortedHeroIds.map((id) => (
           <HeroCard key={id} heroId={id} />
         ))}
       </div>
+      <FusionPanel heroes={heroes} />
     </div>
   )
 }
 
 function HeroCard({ heroId }: { heroId: string }) {
-  const heroes = useGameStore((s) => s.heroes)
-  const currentSeasonId = useGameStore((s) => s.currentSeasonId)
+  const hero = useGameStore((s) => s.heroes.find((h) => h.permanent.id === heroId))
   const allocatePoint = useGameStore((s) => s.allocatePoint)
-
-  const rawHero = heroes.find((h) => h.permanent.id === heroId)
-  const hero = useMemo(
-    () => (rawHero ? applySeasonReset(rawHero, currentSeasonId) : undefined),
-    [rawHero, currentSeasonId],
-  )
 
   if (!hero) return null
   const total = getTotalAttributes(hero)
+  const cap = config.heroes.levelCapByRarity[hero.permanent.rarity]
 
   return (
     <Panel>
@@ -78,8 +71,11 @@ function HeroCard({ heroId }: { heroId: string }) {
           </div>
         </div>
         <div className="text-right">
-          <div className="text-sm text-neutral-400">Niveau {hero.seasonal.level}</div>
-          <div className="text-xs text-neutral-600">{hero.seasonal.xp} XP</div>
+          <div className="text-sm text-neutral-400">
+            Niveau {hero.progression.level}
+            <span className="text-neutral-600"> / {cap}</span>
+          </div>
+          <div className="text-xs text-neutral-600">{hero.progression.xp} XP</div>
         </div>
       </div>
 
@@ -90,11 +86,11 @@ function HeroCard({ heroId }: { heroId: string }) {
             <div className="flex items-center gap-2">
               <span className="tabular-nums">
                 {total[attr]}
-                {hero.seasonal.bonus[attr] > 0 && (
-                  <span className="text-emerald-400"> (+{hero.seasonal.bonus[attr]})</span>
+                {hero.progression.bonus[attr] > 0 && (
+                  <span className="text-emerald-400"> (+{hero.progression.bonus[attr]})</span>
                 )}
               </span>
-              {hero.seasonal.unspentPoints > 0 && (
+              {hero.progression.unspentPoints > 0 && (
                 <button
                   type="button"
                   onClick={() => allocatePoint(heroId, attr)}
@@ -108,10 +104,14 @@ function HeroCard({ heroId }: { heroId: string }) {
         ))}
       </div>
 
-      {hero.seasonal.unspentPoints > 0 && (
+      {hero.progression.unspentPoints > 0 && (
         <p className="mt-3 text-xs text-amber-400">
-          {hero.seasonal.unspentPoints} point(s) à répartir
+          {hero.progression.unspentPoints} point(s) à répartir
         </p>
+      )}
+
+      {hero.progression.level >= cap && (
+        <p className="mt-2 text-xs text-sky-400">Niveau maximum atteint — prêt pour une fusion.</p>
       )}
 
       {hero.history.totalWins > 0 && (
@@ -124,3 +124,39 @@ function HeroCard({ heroId }: { heroId: string }) {
   )
 }
 
+function FusionPanel({ heroes }: { heroes: Hero[] }) {
+  const fuseHeroes = useGameStore((s) => s.fuseHeroes)
+  const needed = config.fusion.itemsRequired
+
+  const groups = (Object.keys(rarityLabels) as Rarity[])
+    .map((rarity) => {
+      const cap = config.heroes.levelCapByRarity[rarity]
+      const eligible = heroes.filter((h) => h.permanent.rarity === rarity && h.progression.level >= cap)
+      return { rarity, eligible, target: nextRarity(rarity) }
+    })
+    .filter((g) => g.target && g.eligible.length >= needed)
+
+  return (
+    <Panel title="Fusion de héros">
+      <p className="mb-3 text-sm text-neutral-500">
+        {needed} héros de même rareté, tous au niveau maximum, peuvent être fusionnés en 1 héros de
+        rareté supérieure (niveau 1, attributs neufs). Les {needed} héros d'origine sont consommés.
+      </p>
+      {groups.length === 0 && (
+        <p className="text-neutral-600">Aucune fusion possible pour le moment.</p>
+      )}
+      <div className="space-y-2">
+        {groups.map((g) => (
+          <div key={g.rarity} className="flex items-center justify-between rounded-md border border-neutral-800 px-3 py-2 text-sm">
+            <span>
+              {g.eligible.length} héros {rarityLabels[g.rarity]} au niveau max → 1 héros {rarityLabels[g.target!]}
+            </span>
+            <Button onClick={() => fuseHeroes(g.eligible.slice(0, needed).map((h) => h.permanent.id))}>
+              Fusionner {needed}
+            </Button>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  )
+}

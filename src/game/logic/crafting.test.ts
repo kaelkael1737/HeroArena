@@ -3,23 +3,23 @@ import { canCraft, canSmelt, craft, smelt } from './crafting'
 
 describe('canCraft / craft', () => {
   it('refuse si les ingrédients manquent', () => {
-    expect(canCraft({}, 'epee_fer')).toBe(false)
+    expect(canCraft({}, 'arme_commun')).toBe(false)
   })
 
-  it('fabrique et consomme les ingrédients exacts', () => {
+  it('fabrique et consomme les ingrédients exacts, au niveau 1', () => {
     const stock = { minerai_fer: 5, bois: 2 }
-    expect(canCraft(stock, 'epee_fer')).toBe(true)
-    const result = craft(stock, 'epee_fer', 1, () => 'item-1')
+    expect(canCraft(stock, 'arme_commun')).toBe(true)
+    const result = craft(stock, 'arme_commun', () => 'item-1')
     expect(result.stock).toEqual({ minerai_fer: 2, bois: 1 })
-    expect(result.item).toEqual({ instanceId: 'item-1', recipeId: 'epee_fer', seasonId: 1 })
+    expect(result.item).toEqual({ instanceId: 'item-1', recipeId: 'arme_commun', level: 1 })
   })
 
   it('lève une erreur pour une recette inconnue', () => {
-    expect(() => craft({}, 'inconnue', 1)).toThrow()
+    expect(() => craft({}, 'inconnue')).toThrow()
   })
 
   it('lève une erreur si les ingrédients sont insuffisants', () => {
-    expect(() => craft({ minerai_fer: 1 }, 'epee_fer', 1)).toThrow()
+    expect(() => craft({ minerai_fer: 1 }, 'arme_commun')).toThrow()
   })
 })
 

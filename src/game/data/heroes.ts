@@ -6,8 +6,7 @@ const permanents = heroesData as HeroPermanent[]
 /** Les 40 héros de départ (cahier des charges §4), initialisés pour la saison 1. */
 export const heroes: Hero[] = permanents.map((permanent) => ({
   permanent,
-  seasonal: {
-    seasonId: 1,
+  progression: {
     level: 0,
     xp: 0,
     unspentPoints: 0,

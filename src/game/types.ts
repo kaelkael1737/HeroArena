@@ -19,9 +19,8 @@ export interface HeroPermanent {
   rarityScore: number
 }
 
-/** Données saisonnières, remises à zéro (paresseusement) à chaque nouvelle saison. */
-export interface HeroSeasonal {
-  seasonId: number
+/** Progression du héros. Permanente : ne se réinitialise jamais entre les saisons. */
+export interface HeroProgression {
   level: number
   xp: number
   unspentPoints: number
@@ -38,7 +37,7 @@ export interface HeroHistory {
 
 export interface Hero {
   permanent: HeroPermanent
-  seasonal: HeroSeasonal
+  progression: HeroProgression
   history: HeroHistory
 }
 
@@ -59,14 +58,17 @@ export interface RecipeIngredient {
 
 export interface EquipmentEffect {
   bonus: Partial<HeroAttributes>
-  special?: string
 }
 
+/** Gabarit d'un équipement pour un emplacement et une rareté donnés (le "mint" de départ, niveau 1). */
 export interface Recipe {
   id: string
   name: string
   slot: EquipmentSlot
+  rarity: Rarity
+  /** Coût pour fabriquer l'objet neuf au niveau 1. */
   ingredients: RecipeIngredient[]
+  /** Bonus au niveau 1 ; croît avec le niveau (voir config.equipment.bonusGrowthPerLevel). */
   effect: EquipmentEffect
 }
 
@@ -77,10 +79,11 @@ export interface SmeltingRecipe {
   output: RecipeIngredient
 }
 
+/** Un équipement possédé : NFT permanent, non consommable, qui monte de niveau et peut être fusionné. */
 export interface EquipmentItem {
   instanceId: string
   recipeId: string
-  seasonId: number
+  level: number
 }
 
 export type ZoneId = 'foret' | 'mine' | 'marais' | 'volcan'

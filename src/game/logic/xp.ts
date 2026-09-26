@@ -1,5 +1,5 @@
 import { config } from '../config'
-import type { HeroSeasonal } from '../types'
+import type { HeroProgression } from '../types'
 
 /** XP total requis pour atteindre `level` depuis le niveau 0. */
 export function xpRequiredForLevel(level: number): number {
@@ -16,26 +16,31 @@ export function levelFromXp(xp: number): number {
 }
 
 export interface XpGainResult {
-  seasonal: HeroSeasonal
+  progression: HeroProgression
   levelsGained: number
   tiersReached: number[]
 }
 
-/** Applique un gain d'XP à un héros, gère les montées de niveau (potentiellement multiples) et les points à répartir. */
-export function applyXpGain(seasonal: HeroSeasonal, xpGained: number): XpGainResult {
-  const newXp = seasonal.xp + xpGained
-  const newLevel = levelFromXp(newXp)
-  const levelsGained = newLevel - seasonal.level
+/**
+ * Applique un gain d'XP à un héros, gère les montées de niveau (potentiellement multiples) et
+ * les points à répartir. Le niveau est plafonné à `levelCap` (verrou de fusion) : l'XP au-delà
+ * du seuil du plafond n'est pas accumulé.
+ */
+export function applyXpGain(progression: HeroProgression, xpGained: number, levelCap = Infinity): XpGainResult {
+  const capXp = xpRequiredForLevel(levelCap)
+  const newXp = Math.min(progression.xp + xpGained, capXp)
+  const newLevel = Math.min(levelFromXp(newXp), levelCap)
+  const levelsGained = newLevel - progression.level
   const tiersReached = config.evolution.tiers.filter(
-    (tier) => tier > seasonal.level && tier <= newLevel,
+    (tier) => tier > progression.level && tier <= newLevel,
   )
 
   return {
-    seasonal: {
-      ...seasonal,
+    progression: {
+      ...progression,
       xp: newXp,
       level: newLevel,
-      unspentPoints: seasonal.unspentPoints + levelsGained * config.xp.pointsPerLevel,
+      unspentPoints: progression.unspentPoints + levelsGained * config.xp.pointsPerLevel,
     },
     levelsGained,
     tiersReached: [...tiersReached],

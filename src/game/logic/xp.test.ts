@@ -28,26 +28,41 @@ describe('levelFromXp', () => {
 
 describe('applyXpGain', () => {
   it('accumule l\'XP sans monter de niveau si insuffisant', () => {
-    const hero = makeHero({ seasonal: { seasonId: 1, level: 0, xp: 0, unspentPoints: 0, bonus: { luck: 0, strength: 0, health: 0, energy: 0, agility: 0 } } })
-    const result = applyXpGain(hero.seasonal, 5)
-    expect(result.seasonal.level).toBe(0)
+    const hero = makeHero({ progression: { level: 0, xp: 0, unspentPoints: 0, bonus: { luck: 0, strength: 0, health: 0, energy: 0, agility: 0 } } })
+    const result = applyXpGain(hero.progression, 5)
+    expect(result.progression.level).toBe(0)
     expect(result.levelsGained).toBe(0)
-    expect(result.seasonal.unspentPoints).toBe(0)
+    expect(result.progression.unspentPoints).toBe(0)
   })
 
   it('gère les montées de niveaux multiples et attribue les points', () => {
     const hero = makeHero()
-    const bigGain = xpRequiredForLevel(3) - hero.seasonal.xp
-    const result = applyXpGain(hero.seasonal, bigGain)
-    expect(result.seasonal.level).toBe(3)
+    const bigGain = xpRequiredForLevel(3) - hero.progression.xp
+    const result = applyXpGain(hero.progression, bigGain)
+    expect(result.progression.level).toBe(3)
     expect(result.levelsGained).toBe(3)
-    expect(result.seasonal.unspentPoints).toBe(3 * config.xp.pointsPerLevel)
+    expect(result.progression.unspentPoints).toBe(3 * config.xp.pointsPerLevel)
   })
 
   it('détecte les paliers d\'évolution franchis', () => {
-    const hero = makeHero({ seasonal: { seasonId: 1, level: 9, xp: xpRequiredForLevel(9), unspentPoints: 0, bonus: { luck: 0, strength: 0, health: 0, energy: 0, agility: 0 } } })
-    const gain = xpRequiredForLevel(10) - hero.seasonal.xp
-    const result = applyXpGain(hero.seasonal, gain)
+    const hero = makeHero({ progression: { level: 9, xp: xpRequiredForLevel(9), unspentPoints: 0, bonus: { luck: 0, strength: 0, health: 0, energy: 0, agility: 0 } } })
+    const gain = xpRequiredForLevel(10) - hero.progression.xp
+    const result = applyXpGain(hero.progression, gain)
     expect(result.tiersReached).toEqual([10])
+  })
+
+  it('plafonne le niveau et l\'XP au levelCap (verrou de fusion)', () => {
+    const hero = makeHero()
+    const result = applyXpGain(hero.progression, xpRequiredForLevel(50), 10)
+    expect(result.progression.level).toBe(10)
+    expect(result.progression.xp).toBe(xpRequiredForLevel(10))
+  })
+
+  it('n\'accumule plus d\'XP une fois au levelCap', () => {
+    const hero = makeHero({ progression: { level: 10, xp: xpRequiredForLevel(10), unspentPoints: 0, bonus: { luck: 0, strength: 0, health: 0, energy: 0, agility: 0 } } })
+    const result = applyXpGain(hero.progression, 100, 10)
+    expect(result.progression.level).toBe(10)
+    expect(result.progression.xp).toBe(xpRequiredForLevel(10))
+    expect(result.levelsGained).toBe(0)
   })
 })

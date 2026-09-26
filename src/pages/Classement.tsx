@@ -8,7 +8,7 @@ export default function Classement() {
   const displayed = heroes.map((h) => ({
     id: h.permanent.id,
     name: h.permanent.name,
-    level: h.seasonal.seasonId === currentSeasonId ? h.seasonal.level : 0,
+    level: h.progression.level,
     totalWins: h.history.totalWins,
     bestRank: h.history.bestRank,
     titles: h.history.titles,
