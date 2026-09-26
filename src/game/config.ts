@@ -67,10 +67,6 @@ export const config = {
     bracketWindow: 5,
     /** Écart entre deux centres de palier consécutifs. */
     bracketSpacing: 10,
-    /** Poids des attributs dans les dégâts par attaque (Force domine, pas de facteur de hasard). */
-    damageWeights: { strength: 3, agility: 1, luck: 1 } satisfies Partial<Record<keyof import('./types').HeroAttributes, number>>,
-    /** Croissance des dégâts par niveau (fraction du total, au-delà du niveau 1). */
-    damageLevelGrowth: 0.05,
     /** Cooldown de base (minutes) entre deux attaques, réduit par l'Énergie du héros. */
     baseCooldownMinutes: 60,
     /** Plus ce diviseur est petit, plus l'Énergie réduit vite le cooldown. */

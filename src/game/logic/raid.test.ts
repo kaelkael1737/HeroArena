@@ -15,6 +15,8 @@ import {
 } from './raid'
 import { makeAttributes } from './fixtures'
 import type { RaidBot } from '../types'
+import { computeCombatScore } from './combat'
+import { createRng } from './rng'
 
 describe('generateLevelBrackets', () => {
   it("couvre toute la plage d'une rareté avec des paliers espacés de 10", () => {
@@ -63,20 +65,26 @@ describe('canAttack', () => {
 })
 
 describe('raidDamage', () => {
-  it('est déterministe (aucun facteur de hasard)', () => {
+  it('reprend exactement la formule de combat (facteur de chance × attributs × niveau)', () => {
     const attrs = makeAttributes({ strength: 20, agility: 10, luck: 5 })
-    expect(raidDamage(attrs, 10)).toBe(raidDamage(attrs, 10))
+    expect(raidDamage(attrs, 10, createRng(42))).toBe(computeCombatScore(10, attrs, createRng(42)))
   })
 
-  it('la Force pèse plus lourd que les autres attributs', () => {
-    const strengthFocused = makeAttributes({ strength: 30, agility: 0, luck: 0 })
-    const agilityFocused = makeAttributes({ strength: 0, agility: 30, luck: 0 })
-    expect(raidDamage(strengthFocused, 1)).toBeGreaterThan(raidDamage(agilityFocused, 1))
+  it('est reproductible pour une même graine', () => {
+    const attrs = makeAttributes({ strength: 20, agility: 10, luck: 5 })
+    expect(raidDamage(attrs, 10, createRng(7))).toBe(raidDamage(attrs, 10, createRng(7)))
   })
 
-  it('augmente avec le niveau', () => {
+  it('augmente en moyenne avec le niveau (sur de nombreux tirages)', () => {
     const attrs = makeAttributes()
-    expect(raidDamage(attrs, 20)).toBeGreaterThan(raidDamage(attrs, 1))
+    const trials = 100
+    let totalLow = 0
+    let totalHigh = 0
+    for (let seed = 0; seed < trials; seed += 1) {
+      totalLow += raidDamage(attrs, 1, createRng(seed))
+      totalHigh += raidDamage(attrs, 20, createRng(seed + 10_000))
+    }
+    expect(totalHigh / trials).toBeGreaterThan(totalLow / trials)
   })
 })
 

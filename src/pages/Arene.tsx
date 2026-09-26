@@ -80,7 +80,7 @@ export default function Arene() {
 
       <Panel title="Monstre(s) attaquable(s) par ce héros">
         <p className="mb-3 text-sm text-neutral-500">
-          Dégâts déterministes selon les attributs du héros, sans facteur de hasard. Cooldown réduit par l'Énergie.
+          Dégâts = niveau × Σ [ tirage(1, attribut) × facteur de chance ], facteur tiré entre 1 et la Chance du héros. Cooldown réduit par l'Énergie.
         </p>
         {eligibleMonsters.length === 0 && <p className="text-neutral-600">Aucun monstre dans la fenêtre de niveau de ce héros.</p>}
         <div className="space-y-3">

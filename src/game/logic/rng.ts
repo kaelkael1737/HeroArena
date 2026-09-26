@@ -18,3 +18,12 @@ export function createRng(seed: number): () => number {
 export function randomInt(rng: () => number, min: number, max: number): number {
   return Math.floor(rng() * (max - min + 1)) + min
 }
+
+/** Hash déterministe d'une chaîne, pour dériver une graine de RNG reproductible. */
+export function hashString(input: string): number {
+  let hash = 0
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31 + input.charCodeAt(i)) | 0
+  }
+  return hash >>> 0
+}

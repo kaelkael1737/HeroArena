@@ -25,7 +25,7 @@ import {
   respawnMonster,
 } from './logic/raid'
 import { generateBots } from './logic/raidBots'
-import { createRng } from './logic/rng'
+import { createRng, hashString } from './logic/rng'
 import { applyXpGain } from './logic/xp'
 import { heroes as startingHeroes } from './data/heroes'
 import type {
@@ -301,7 +301,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (state.now < (state.heroRaidCooldowns[heroId] ?? 0)) return undefined
 
     const attributes = getEffectiveAttributes(hero, state.getEquippedItems(heroId))
-    const damage = raidDamage(attributes, hero.progression.level)
+    const seed = hashString(`${heroId}-${monsterId}-attack-${state.now}`)
+    const damage = raidDamage(attributes, hero.progression.level, createRng(seed))
     const { monster: updated, killed } = applyDamage(monster, LOCAL_PLAYER_ID, damage)
 
     let monsters = state.monsters.map((m) => (m.id === monster.id ? updated : m))
@@ -378,12 +379,4 @@ const recipesById: Record<string, EquipmentSlot> = Object.fromEntries(
 
 function recipeSlotOf(recipeId: string): EquipmentSlot | undefined {
   return recipesById[recipeId]
-}
-
-function hashString(input: string): number {
-  let hash = 0
-  for (let i = 0; i < input.length; i += 1) {
-    hash = (hash * 31 + input.charCodeAt(i)) | 0
-  }
-  return hash >>> 0
 }

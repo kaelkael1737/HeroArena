@@ -1,5 +1,7 @@
 import { config } from '../config'
 import type { HeroAttributes, Monster, RaidBot, Rarity } from '../types'
+import { computeCombatScore } from './combat'
+import { createRng, hashString } from './rng'
 
 const RARITIES: Rarity[] = ['commun', 'peu_commun', 'rare', 'epique', 'legendaire']
 
@@ -25,15 +27,12 @@ export function canAttack(heroRarity: Rarity, heroLevel: number, monster: Monste
   return Math.abs(Math.max(1, heroLevel) - monster.levelBracket) <= config.raid.bracketWindow
 }
 
-/** Dégâts infligés par attaque : déterministe, aucun facteur de hasard. */
-export function raidDamage(attributes: HeroAttributes, level: number): number {
-  const { damageWeights, damageLevelGrowth } = config.raid
-  const base = Object.entries(damageWeights).reduce(
-    (sum, [key, weight]) => sum + attributes[key as keyof HeroAttributes] * (weight ?? 0),
-    0,
-  )
-  const growth = 1 + Math.max(0, level - 1) * damageLevelGrowth
-  return Math.max(1, Math.round(base * growth))
+/**
+ * Dégâts infligés par attaque, avec la même formule que le combat (facteur de chance aléatoire
+ * entre 1 et la Chance, appliqué à un tirage entre 1 et chaque attribut, le tout × le niveau).
+ */
+export function raidDamage(attributes: HeroAttributes, level: number, rng: () => number): number {
+  return computeCombatScore(level, attributes, rng)
 }
 
 /** Temps de récupération (ms) avant la prochaine attaque, réduit par l'Énergie du héros. */
@@ -124,7 +123,8 @@ export function processBotAttacks(monsters: Monster[], bots: RaidBot[], now: num
     const monster = nextMonsters.find((m) => canAttack(bot.rarity, bot.level, m))
     if (!monster) return bot
 
-    const damage = raidDamage(bot.attributes, bot.level)
+    const seed = hashString(`${bot.id}-${monster.id}-${now}`)
+    const damage = raidDamage(bot.attributes, bot.level, createRng(seed))
     const { monster: updated, killed } = applyDamage(monster, bot.id, damage)
     nextMonsters = nextMonsters.map((m) => (m.id === monster.id ? updated : m))
 
