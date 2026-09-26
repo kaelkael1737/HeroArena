@@ -1,10 +1,17 @@
-import { config } from '../game/config'
-import { getTotalAttributes } from '../game/logic/attributes'
+import { config, recipes } from '../game/config'
+import { getEffectiveAttributes, getTotalAttributes } from '../game/logic/attributes'
 import { nextRarity } from '../game/logic/rarity'
 import { useGameStore } from '../game/store'
-import type { Hero, HeroAttributes, Rarity } from '../game/types'
+import type { EquipmentItem, EquipmentSlot, Hero, HeroAttributes, Rarity } from '../game/types'
 import { HeroAvatar } from '../ui/HeroAvatar'
 import { Button, Panel } from '../ui/Panel'
+
+const slotLabels: Record<EquipmentSlot, string> = {
+  arme: 'Arme',
+  armure: 'Armure',
+  bouclier: 'Bouclier',
+  amulette: 'Amulette',
+}
 
 const rarityOrder: Record<Rarity, number> = {
   legendaire: 0,
@@ -54,10 +61,20 @@ export default function MesHeros() {
 
 function HeroCard({ heroId }: { heroId: string }) {
   const hero = useGameStore((s) => s.heroes.find((h) => h.permanent.id === heroId))
+  const equippedSlots = useGameStore((s) => s.equippedByHero[heroId])
+  const equipmentInventory = useGameStore((s) => s.equipmentInventory)
   const allocatePoint = useGameStore((s) => s.allocatePoint)
+  const unequipItem = useGameStore((s) => s.unequipItem)
 
   if (!hero) return null
+
+  const equippedItems = Object.values(equippedSlots ?? {})
+    .filter((id): id is string => Boolean(id))
+    .map((id) => equipmentInventory.find((i) => i.instanceId === id))
+    .filter((i): i is EquipmentItem => Boolean(i))
+
   const total = getTotalAttributes(hero)
+  const effective = getEffectiveAttributes(hero, equippedItems)
   const cap = config.heroes.levelCapByRarity[hero.permanent.rarity]
 
   return (
@@ -80,14 +97,19 @@ function HeroCard({ heroId }: { heroId: string }) {
       </div>
 
       <div className="mt-3 space-y-1.5">
-        {(Object.keys(attributeLabels) as (keyof HeroAttributes)[]).map((attr) => (
+        {(Object.keys(attributeLabels) as (keyof HeroAttributes)[]).map((attr) => {
+          const fromEquipment = effective[attr] - total[attr]
+          return (
           <div key={attr} className="flex items-center justify-between text-sm">
             <span className="text-neutral-400">{attributeLabels[attr]}</span>
             <div className="flex items-center gap-2">
               <span className="tabular-nums">
-                {total[attr]}
+                {effective[attr]}
                 {hero.progression.bonus[attr] > 0 && (
-                  <span className="text-emerald-400"> (+{hero.progression.bonus[attr]})</span>
+                  <span className="text-emerald-400"> (+{hero.progression.bonus[attr]} pts)</span>
+                )}
+                {fromEquipment > 0 && (
+                  <span className="text-sky-400"> (+{fromEquipment} équip.)</span>
                 )}
               </span>
               {hero.progression.unspentPoints > 0 && (
@@ -101,7 +123,37 @@ function HeroCard({ heroId }: { heroId: string }) {
               )}
             </div>
           </div>
-        ))}
+          )
+        })}
+      </div>
+
+      <div className="mt-3 space-y-1">
+        {(Object.keys(slotLabels) as EquipmentSlot[]).map((slot) => {
+          const instanceId = equippedSlots?.[slot]
+          const item = equipmentInventory.find((i) => i.instanceId === instanceId)
+          const recipe = item ? recipes.find((r) => r.id === item.recipeId) : undefined
+          return (
+            <div key={slot} className="flex items-center justify-between text-xs">
+              <span className="text-neutral-600">{slotLabels[slot]}</span>
+              {recipe && item ? (
+                <span className="flex items-center gap-2">
+                  <span className="text-neutral-300">
+                    {recipe.name} (niv. {item.level})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => unequipItem(heroId, slot)}
+                    className="text-neutral-600 hover:text-red-400"
+                  >
+                    retirer
+                  </button>
+                </span>
+              ) : (
+                <span className="text-neutral-700">vide</span>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {hero.progression.unspentPoints > 0 && (

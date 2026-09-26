@@ -18,6 +18,7 @@ export default function Atelier() {
   const heroes = useGameStore((s) => s.heroes)
   const heroIds = heroes.map((h) => h.permanent.id)
   const equipment = useGameStore((s) => s.equipmentInventory)
+  const equippedByHero = useGameStore((s) => s.equippedByHero)
   const equipItem = useGameStore((s) => s.equipItem)
   const upgradeEquipmentItem = useGameStore((s) => s.upgradeEquipmentItem)
   const fuseEquipmentItems = useGameStore((s) => s.fuseEquipmentItems)
@@ -88,14 +89,26 @@ export default function Atelier() {
           {equipment.length === 0 && <p className="text-neutral-500">Aucun équipement disponible.</p>}
           {equipment.map((item) => {
             const recipe = recipes.find((r) => r.id === item.recipeId)
+            const ownerId = Object.entries(equippedByHero).find(([, slots]) =>
+              Object.values(slots).includes(item.instanceId),
+            )?.[0]
+            const ownerName = ownerId ? heroes.find((h) => h.permanent.id === ownerId)?.permanent.name : undefined
+            const equippedOnSelected = ownerId === selectedHero
             return (
               <div key={item.instanceId} className="flex items-center justify-between rounded-md border border-neutral-800 px-3 py-2 text-sm">
                 <span>
                   {recipe?.name ?? item.recipeId}{' '}
                   <span className="text-xs text-neutral-500">({recipe?.slot}, niveau {item.level})</span>
+                  {ownerName && (
+                    <span className="ml-2 text-xs text-amber-400">Équipé sur {ownerName}</span>
+                  )}
                 </span>
-                <Button variant="secondary" onClick={() => equipItem(selectedHero, item.instanceId)}>
-                  Équiper
+                <Button
+                  variant="secondary"
+                  disabled={equippedOnSelected}
+                  onClick={() => equipItem(selectedHero, item.instanceId)}
+                >
+                  {equippedOnSelected ? 'Équipé' : 'Équiper'}
                 </Button>
               </div>
             )
