@@ -2,8 +2,17 @@ import { useMemo } from 'react'
 import { getTotalAttributes } from '../game/logic/attributes'
 import { applySeasonReset } from '../game/logic/season'
 import { useGameStore } from '../game/store'
-import type { HeroAttributes } from '../game/types'
+import type { HeroAttributes, Rarity } from '../game/types'
+import { HeroAvatar } from '../ui/HeroAvatar'
 import { Panel } from '../ui/Panel'
+
+const rarityOrder: Record<Rarity, number> = {
+  legendaire: 0,
+  epique: 1,
+  rare: 2,
+  peu_commun: 3,
+  commun: 4,
+}
 
 const attributeLabels: Record<keyof HeroAttributes, string> = {
   luck: 'Chance',
@@ -23,7 +32,9 @@ const rarityLabels: Record<string, string> = {
 
 export default function MesHeros() {
   const heroes = useGameStore((s) => s.heroes)
-  const heroIds = heroes.map((h) => h.permanent.id)
+  const heroIds = [...heroes]
+    .sort((a, b) => rarityOrder[a.permanent.rarity] - rarityOrder[b.permanent.rarity])
+    .map((h) => h.permanent.id)
   const currentSeasonId = useGameStore((s) => s.currentSeasonId)
 
   return (
@@ -59,9 +70,12 @@ function HeroCard({ heroId }: { heroId: string }) {
   return (
     <Panel>
       <div className="flex items-start justify-between">
-        <div>
-          <h3 className="font-semibold text-neutral-100">{hero.permanent.name}</h3>
-          <span className="text-xs text-neutral-500">{rarityLabels[hero.permanent.rarity]}</span>
+        <div className="flex items-center gap-3">
+          <HeroAvatar name={hero.permanent.name} rarity={hero.permanent.rarity} />
+          <div>
+            <h3 className="font-semibold text-neutral-100">{hero.permanent.name}</h3>
+            <span className="text-xs text-neutral-500">{rarityLabels[hero.permanent.rarity]}</span>
+          </div>
         </div>
         <div className="text-right">
           <div className="text-sm text-neutral-400">Niveau {hero.seasonal.level}</div>

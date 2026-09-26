@@ -19,7 +19,7 @@ import {
   runRound,
 } from './logic/tournament'
 import { applyXpGain } from './logic/xp'
-import { devHeroes } from './data/devHeroes'
+import { heroes as startingHeroes } from './data/heroes'
 import { resolveCombat } from './logic/combat'
 import type {
   CombatantInput,
@@ -80,7 +80,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   currentSeasonId: 1,
   seasonStartedAt: Date.now(),
   now: Date.now(),
-  heroes: devHeroes,
+  heroes: startingHeroes,
   resources: {},
   equipmentInventory: [],
   equippedByHero: {},
