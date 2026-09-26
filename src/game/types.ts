@@ -19,12 +19,14 @@ export interface HeroPermanent {
   rarityScore: number
 }
 
-/** Progression du héros. Permanente : ne se réinitialise jamais entre les saisons. */
+/**
+ * Progression du héros. Permanente : ne se réinitialise jamais entre les saisons. Ne modifie pas
+ * les attributs (seul l'équipement le fait) — sert de multiplicateur de dégâts de raid et de
+ * verrou de fusion.
+ */
 export interface HeroProgression {
   level: number
   xp: number
-  unspentPoints: number
-  bonus: HeroAttributes
 }
 
 /** Historique, jamais remis à zéro. */

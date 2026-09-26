@@ -63,7 +63,6 @@ function HeroCard({ heroId }: { heroId: string }) {
   const hero = useGameStore((s) => s.heroes.find((h) => h.permanent.id === heroId))
   const equippedSlots = useGameStore((s) => s.equippedByHero[heroId])
   const equipmentInventory = useGameStore((s) => s.equipmentInventory)
-  const allocatePoint = useGameStore((s) => s.allocatePoint)
   const unequipItem = useGameStore((s) => s.unequipItem)
 
   if (!hero) return null
@@ -100,29 +99,15 @@ function HeroCard({ heroId }: { heroId: string }) {
         {(Object.keys(attributeLabels) as (keyof HeroAttributes)[]).map((attr) => {
           const fromEquipment = effective[attr] - total[attr]
           return (
-          <div key={attr} className="flex items-center justify-between text-sm">
-            <span className="text-neutral-400">{attributeLabels[attr]}</span>
-            <div className="flex items-center gap-2">
+            <div key={attr} className="flex items-center justify-between text-sm">
+              <span className="text-neutral-400">{attributeLabels[attr]}</span>
               <span className="tabular-nums">
                 {effective[attr]}
-                {hero.progression.bonus[attr] > 0 && (
-                  <span className="text-emerald-400"> (+{hero.progression.bonus[attr]} pts)</span>
-                )}
                 {fromEquipment > 0 && (
                   <span className="text-sky-400"> (+{fromEquipment} équip.)</span>
                 )}
               </span>
-              {hero.progression.unspentPoints > 0 && (
-                <button
-                  type="button"
-                  onClick={() => allocatePoint(heroId, attr)}
-                  className="flex h-5 w-5 items-center justify-center rounded bg-neutral-800 text-xs hover:bg-amber-500 hover:text-neutral-950"
-                >
-                  +
-                </button>
-              )}
             </div>
-          </div>
           )
         })}
       </div>
@@ -155,12 +140,6 @@ function HeroCard({ heroId }: { heroId: string }) {
           )
         })}
       </div>
-
-      {hero.progression.unspentPoints > 0 && (
-        <p className="mt-3 text-xs text-amber-400">
-          {hero.progression.unspentPoints} point(s) à répartir
-        </p>
-      )}
 
       {hero.progression.level >= cap && (
         <p className="mt-2 text-xs text-sky-400">Niveau maximum atteint — prêt pour une fusion.</p>

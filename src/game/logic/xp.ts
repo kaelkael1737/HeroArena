@@ -22,9 +22,9 @@ export interface XpGainResult {
 }
 
 /**
- * Applique un gain d'XP à un héros, gère les montées de niveau (potentiellement multiples) et
- * les points à répartir. Le niveau est plafonné à `levelCap` (verrou de fusion) : l'XP au-delà
- * du seuil du plafond n'est pas accumulé.
+ * Applique un gain d'XP à un héros et gère les montées de niveau (potentiellement multiples).
+ * Ne modifie aucun attribut — seul l'équipement le fait. Le niveau est plafonné à `levelCap`
+ * (verrou de fusion) : l'XP au-delà du seuil du plafond n'est pas accumulé.
  */
 export function applyXpGain(progression: HeroProgression, xpGained: number, levelCap = Infinity): XpGainResult {
   const capXp = xpRequiredForLevel(levelCap)
@@ -36,12 +36,7 @@ export function applyXpGain(progression: HeroProgression, xpGained: number, leve
   )
 
   return {
-    progression: {
-      ...progression,
-      xp: newXp,
-      level: newLevel,
-      unspentPoints: progression.unspentPoints + levelsGained * config.xp.pointsPerLevel,
-    },
+    progression: { ...progression, xp: newXp, level: newLevel },
     levelsGained,
     tiersReached: [...tiersReached],
   }

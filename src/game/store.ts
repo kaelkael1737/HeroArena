@@ -61,7 +61,6 @@ interface GameState {
   getEquippedItems: (heroId: string) => EquipmentItem[]
   getEffectiveAttributes: (heroId: string) => HeroAttributes | undefined
 
-  allocatePoint: (heroId: string, attribute: keyof HeroAttributes) => void
   startMission: (heroId: string, zoneId: ZoneId, durationId: MissionDurationId) => void
   claimMission: (missionId: string) => void
   craftItem: (recipeId: string) => void
@@ -125,23 +124,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     const hero = state.getHero(heroId)
     if (!hero) return undefined
     return getEffectiveAttributes(hero, state.getEquippedItems(heroId))
-  },
-
-  allocatePoint: (heroId, attribute) => {
-    set((state) => ({
-      heroes: state.heroes.map((h) => {
-        if (h.permanent.id !== heroId) return h
-        if (h.progression.unspentPoints <= 0) return h
-        return {
-          ...h,
-          progression: {
-            ...h.progression,
-            unspentPoints: h.progression.unspentPoints - 1,
-            bonus: { ...h.progression.bonus, [attribute]: h.progression.bonus[attribute] + 1 },
-          },
-        }
-      }),
-    }))
   },
 
   startMission: (heroId, zoneId, durationId) => {

@@ -15,12 +15,7 @@ export function makeHero(overrides: Partial<Hero> = {}): Hero {
       base: makeAttributes(),
       rarityScore: 50,
     },
-    progression: {
-      level: 0,
-      xp: 0,
-      unspentPoints: 0,
-      bonus: { luck: 0, strength: 0, health: 0, energy: 0, agility: 0 },
-    },
+    progression: { level: 0, xp: 0 },
     history: { bestRank: null, totalWins: 0, titles: [], badges: [] },
     ...overrides,
   }

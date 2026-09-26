@@ -12,12 +12,12 @@ function addAttributes(a: HeroAttributes, b: Partial<HeroAttributes>): HeroAttri
   }
 }
 
-/** Attributs de base + bonus de progression répartis par le joueur, sans équipement. */
+/** Attributs de base du héros, sans équipement. Le niveau ne modifie jamais les attributs. */
 export function getTotalAttributes(hero: Hero): HeroAttributes {
-  return addAttributes(hero.permanent.base, hero.progression.bonus)
+  return hero.permanent.base
 }
 
-/** Attributs effectifs pour le combat/les missions : base + progression + équipement porté (NFT permanent). */
+/** Attributs effectifs pour le combat/les missions : base + équipement porté (NFT permanent). */
 export function getEffectiveAttributes(hero: Hero, equippedItems: EquipmentItem[]): HeroAttributes {
   let total = getTotalAttributes(hero)
   for (const item of equippedItems) {

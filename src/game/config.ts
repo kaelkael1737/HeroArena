@@ -21,7 +21,6 @@ export const config = {
      * l'entraînement). 1 point de dégâts = ce nombre de points d'XP.
      */
     xpPerDamagePoint: 1,
-    pointsPerLevel: 3,
   },
 
   evolution: {

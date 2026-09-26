@@ -51,12 +51,7 @@ export function generateHero(rarity: Rarity, rng: () => number, id: string): Her
 
   return {
     permanent,
-    progression: {
-      level: 0,
-      xp: 0,
-      unspentPoints: 0,
-      bonus: { luck: 0, strength: 0, health: 0, energy: 0, agility: 0 },
-    },
+    progression: { level: 0, xp: 0 },
     history: { bestRank: null, totalWins: 0, titles: [], badges: [] },
   }
 }
