@@ -7,13 +7,20 @@ import type {
   ZoneId,
 } from './types'
 
+/** XP cumulé pour atteindre le niveau 1 ; l'écart entre deux niveaux grandit de xpGapIncrement à chaque niveau. */
+const XP_FIRST_LEVEL = 15_200
+const XP_GAP_INCREMENT = 1_500
+
 /** Toutes les valeurs d'équilibrage du jeu. Modifier ici, jamais en dur ailleurs. */
 export const config = {
   xp: {
-    /** xp requis pour atteindre `level` depuis 0. */
-    xpForLevel: (level: number) => Math.round(100 * level ** 1.5),
-    /** XP gagné pour une mission, avant multiplicateurs de durée. Seule source de progression : pas l'entraînement. */
-    baseMissionXp: 20,
+    /** xp cumulé requis pour atteindre `level` depuis 0 (écarts croissants entre niveaux, voir plus haut). */
+    xpForLevel: (level: number) => level * XP_FIRST_LEVEL + (XP_GAP_INCREMENT / 2) * level * (level - 1),
+    /**
+     * Seule source d'XP : les dégâts infligés aux monstres du raid (pas les missions, pas
+     * l'entraînement). 1 point de dégâts = ce nombre de points d'XP.
+     */
+    xpPerDamagePoint: 1,
     pointsPerLevel: 3,
   },
 
@@ -89,11 +96,11 @@ export const config = {
     minConcurrentSlots: 1,
     maxConcurrentSlots: 5,
     durations: {
-      courte: { hours: 1, xpMultiplier: 1, rareChanceBonus: 0 },
-      moyenne: { hours: 4, xpMultiplier: 2.5, rareChanceBonus: 0.05 },
-      longue: { hours: 8, xpMultiplier: 4.5, rareChanceBonus: 0.1 },
-      expedition: { hours: 24, xpMultiplier: 10, rareChanceBonus: 0.2 },
-    } satisfies Record<MissionDurationId, { hours: number; xpMultiplier: number; rareChanceBonus: number }>,
+      courte: { hours: 1, yieldMultiplier: 1, rareChanceBonus: 0 },
+      moyenne: { hours: 4, yieldMultiplier: 2.5, rareChanceBonus: 0.05 },
+      longue: { hours: 8, yieldMultiplier: 4.5, rareChanceBonus: 0.1 },
+      expedition: { hours: 24, yieldMultiplier: 10, rareChanceBonus: 0.2 },
+    } satisfies Record<MissionDurationId, { hours: number; yieldMultiplier: number; rareChanceBonus: number }>,
     /** Chance de base d'obtenir une ressource rare de la zone, avant bonus de durée/Chance. */
     baseRareChance: 0.1,
     /** Chance ajoutée par point de Chance du héros (plafonnée). */

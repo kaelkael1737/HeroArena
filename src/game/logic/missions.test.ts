@@ -50,11 +50,11 @@ describe('startMission', () => {
 })
 
 describe('resolveMission', () => {
-  it('donne de l\'XP et des ressources de la zone visitée', () => {
+  it('donne des ressources de la zone visitée, mais aucune XP', () => {
     const hero = makeHero()
     const mission = startMission(hero, 'foret', 'moyenne', 0, () => 'm1')
     const result = resolveMission(hero, mission, createRng(42))
-    expect(result.xp).toBeGreaterThan(0)
+    expect(result).not.toHaveProperty('xp')
     const totalResources = Object.values(result.resources).reduce((a, b) => a + b, 0)
     expect(totalResources).toBeGreaterThan(0)
     for (const resourceId of Object.keys(result.resources)) {

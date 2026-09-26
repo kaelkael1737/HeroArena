@@ -98,8 +98,26 @@ describe('fuseHeroes', () => {
   })
 })
 
+describe('claimMission', () => {
+  it("donne des ressources mais aucune XP (seul le raid fait progresser un héros)", () => {
+    const state = useGameStore.getState()
+    const hero = state.heroes[0]
+    state.startMission(hero.permanent.id, 'foret', 'courte')
+    const mission = useGameStore.getState().missions[0]
+    state.finishMissionInstantly(mission.id)
+    state.claimMission(mission.id)
+
+    const resources = useGameStore.getState().resources
+    const totalResources = Object.values(resources).reduce((a, b) => a + b, 0)
+    expect(totalResources).toBeGreaterThan(0)
+
+    const updatedHero = useGameStore.getState().getHero(hero.permanent.id)!
+    expect(updatedHero.progression).toEqual(hero.progression)
+  })
+})
+
 describe('attackMonster', () => {
-  it('inflige des dégâts déterministes et applique un cooldown', () => {
+  it('inflige des dégâts et applique un cooldown', () => {
     const hero = useGameStore.getState().heroes.find((h) => h.permanent.rarity === 'commun')!
     const monster = useGameStore.getState().monsters.find((m) => m.rarity === 'commun' && m.levelBracket === 5)!
     const result = useGameStore.getState().attackMonster(hero.permanent.id, monster.id)
@@ -107,6 +125,15 @@ describe('attackMonster', () => {
     const updated = useGameStore.getState().monsters.find((m) => m.id === monster.id)!
     expect(updated.currentHp).toBe(monster.maxHp - result!.damage)
     expect(updated.damageByPlayer[LOCAL_PLAYER_ID]).toBe(result!.damage)
+  })
+
+  it("accorde de l'XP au héros, proportionnelle aux dégâts infligés", () => {
+    const hero = useGameStore.getState().heroes.find((h) => h.permanent.rarity === 'commun')!
+    const monster = useGameStore.getState().monsters.find((m) => m.rarity === 'commun' && m.levelBracket === 5)!
+    const result = useGameStore.getState().attackMonster(hero.permanent.id, monster.id)
+    expect(result?.xpGained).toBe(result!.damage * config.xp.xpPerDamagePoint)
+    const updatedHero = useGameStore.getState().getHero(hero.permanent.id)!
+    expect(updatedHero.progression.xp).toBe(result!.xpGained)
   })
 
   it('refuse une seconde attaque avant la fin du cooldown', () => {

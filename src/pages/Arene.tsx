@@ -29,7 +29,7 @@ export default function Arene() {
 
   const [selectedHero, setSelectedHero] = useState(heroIds[0])
   const [lastResult, setLastResult] = useState<{ won: boolean } | null>(null)
-  const [lastAttack, setLastAttack] = useState<{ damage: number } | null>(null)
+  const [lastAttack, setLastAttack] = useState<{ damage: number; xpGained: number } | null>(null)
 
   const hero = heroes.find((h) => h.permanent.id === selectedHero)
   const eligibleMonsters = hero ? monsters.filter((m) => canAttack(hero.permanent.rarity, hero.progression.level, m)) : []
@@ -83,7 +83,7 @@ export default function Arene() {
 
       <Panel title="Monstre(s) attaquable(s) par ce héros">
         <p className="mb-3 text-sm text-neutral-500">
-          Dégâts = niveau × Σ [ tirage(1, attribut) × facteur de chance ], facteur tiré entre 1 et la Chance du héros. Cooldown réduit par l'Énergie.
+          Dégâts = niveau × Σ [ tirage(1, attribut) × facteur de chance ], facteur tiré entre 1 et la Chance du héros. Cooldown réduit par l'Énergie. Chaque point de dégâts donne 1 XP au héros — seul le raid le fait progresser.
         </p>
         {eligibleMonsters.length === 0 && <p className="text-neutral-600">Aucun monstre dans la fenêtre de niveau de ce héros.</p>}
         <div className="space-y-3">
@@ -118,7 +118,12 @@ export default function Arene() {
             )
           })}
         </div>
-        {lastAttack && <p className="mt-3 text-sm text-red-400">Coup porté : {lastAttack.damage.toLocaleString('fr-FR')} dégâts</p>}
+        {lastAttack && (
+          <p className="mt-3 text-sm text-red-400">
+            Coup porté : {lastAttack.damage.toLocaleString('fr-FR')} dégâts
+            <span className="text-emerald-400"> (+{lastAttack.xpGained.toLocaleString('fr-FR')} XP)</span>
+          </p>
+        )}
       </Panel>
     </div>
   )

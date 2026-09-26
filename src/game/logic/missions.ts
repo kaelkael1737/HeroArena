@@ -42,13 +42,14 @@ export function isMissionComplete(mission: MissionInProgress, now: number): bool
 }
 
 export interface MissionRewards {
-  xp: number
   resources: Record<string, number>
 }
 
 /**
- * Calcule les récompenses d'une mission terminée. La Chance du héros et la durée de la
- * mission augmentent la probabilité d'obtenir une ressource rare de la zone plutôt qu'une commune.
+ * Calcule les récompenses d'une mission terminée : uniquement des ressources (les missions ne
+ * donnent plus d'XP — seuls les dégâts infligés en raid font progresser un héros). La Chance du
+ * héros et la durée de la mission augmentent la probabilité d'obtenir une ressource rare plutôt
+ * qu'une commune.
  */
 export function resolveMission(
   hero: Hero,
@@ -59,14 +60,12 @@ export function resolveMission(
   const duration = config.missions.durations[mission.durationId]
   const total = getTotalAttributes(hero)
 
-  const xp = Math.round(config.xp.baseMissionXp * duration.xpMultiplier)
-
   const rareChance = Math.min(
     config.missions.maxRareChance,
     config.missions.baseRareChance + duration.rareChanceBonus + total.luck * config.missions.luckRareChancePerPoint,
   )
 
-  const yieldCount = Math.round(config.missions.baseCommonYield * duration.xpMultiplier)
+  const yieldCount = Math.round(config.missions.baseCommonYield * duration.yieldMultiplier)
   const resources: Record<string, number> = {}
 
   for (let i = 0; i < yieldCount; i += 1) {
@@ -77,5 +76,5 @@ export function resolveMission(
     resources[pick] = (resources[pick] ?? 0) + 1
   }
 
-  return { xp, resources }
+  return { resources }
 }

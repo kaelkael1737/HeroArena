@@ -8,9 +8,11 @@ describe('xpRequiredForLevel', () => {
     expect(xpRequiredForLevel(0)).toBe(0)
   })
 
-  it('suit la courbe 100 * niveau^1.5', () => {
+  it('suit la courbe arithmétique (15200 au niveau 1, +1500 par niveau)', () => {
     expect(xpRequiredForLevel(4)).toBe(config.xp.xpForLevel(4))
-    expect(xpRequiredForLevel(4)).toBe(800)
+    expect(xpRequiredForLevel(1)).toBe(15_200)
+    expect(xpRequiredForLevel(2) - xpRequiredForLevel(1)).toBe(15_200 + 1_500)
+    expect(xpRequiredForLevel(3) - xpRequiredForLevel(2)).toBe(15_200 + 2 * 1_500)
   })
 })
 

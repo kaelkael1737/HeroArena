@@ -73,7 +73,7 @@ interface GameState {
   fuseHeroes: (heroIds: string[]) => void
 
   trainHero: (heroId: string) => { won: boolean } | undefined
-  attackMonster: (heroId: string, monsterId: string) => { damage: number } | undefined
+  attackMonster: (heroId: string, monsterId: string) => { damage: number; xpGained: number } | undefined
 
   // Debug
   advanceTime: (ms: number) => void
@@ -163,12 +163,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const rng = createRng(mission.startedAt + hashString(mission.id))
     const rewards = resolveMission(hero, mission, rng)
-    const xpResult = applyXpGain(hero.progression, rewards.xp, heroLevelCap(hero))
 
     set({
-      heroes: state.heroes.map((h) =>
-        h.permanent.id === hero.permanent.id ? { ...h, progression: xpResult.progression } : h,
-      ),
       resources: mergeResources(state.resources, rewards.resources),
       missions: state.missions.map((m) => (m.id === missionId ? { ...m, claimed: true } : m)),
     })
@@ -305,13 +301,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       monsters = monsters.map((m) => (m.id === monster.id ? respawnMonster(updated) : m))
     }
 
+    const xpGained = damage * config.xp.xpPerDamagePoint
+    const xpResult = applyXpGain(hero.progression, xpGained, heroLevelCap(hero))
+
     set({
       monsters,
       raidRewards,
+      heroes: state.heroes.map((h) => (h.permanent.id === heroId ? { ...h, progression: xpResult.progression } : h)),
       heroRaidCooldowns: { ...state.heroRaidCooldowns, [heroId]: state.now + raidCooldownMs(attributes.energy) },
     })
 
-    return { damage }
+    return { damage, xpGained }
   },
 
   advanceTime: (ms) =>
