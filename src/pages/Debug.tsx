@@ -2,8 +2,7 @@ import { zones } from '../game/config'
 import { useGameStore } from '../game/store'
 import { Button, Panel } from '../ui/Panel'
 
-const HOUR_MS = 60 * 60 * 1000
-const DAY_MS = 24 * HOUR_MS
+const speedPresets = [1, 60, 500, 2000]
 
 export default function Debug() {
   const now = useGameStore((s) => s.now)
@@ -11,7 +10,10 @@ export default function Debug() {
   const currentSeasonId = useGameStore((s) => s.currentSeasonId)
   const missions = useGameStore((s) => s.missions)
   const heroes = useGameStore((s) => s.heroes)
-  const advanceTime = useGameStore((s) => s.advanceTime)
+  const clockRunning = useGameStore((s) => s.clockRunning)
+  const clockSpeed = useGameStore((s) => s.clockSpeed)
+  const setClockRunning = useGameStore((s) => s.setClockRunning)
+  const setClockSpeed = useGameStore((s) => s.setClockSpeed)
   const finishMissionInstantly = useGameStore((s) => s.finishMissionInstantly)
   const jumpToTournament = useGameStore((s) => s.jumpToTournament)
   const startNewSeason = useGameStore((s) => s.startNewSeason)
@@ -23,15 +25,25 @@ export default function Debug() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold text-red-400">Debug (phase 1 uniquement)</h1>
 
-      <Panel title="Temps">
+      <Panel title="Horloge">
         <p className="mb-3 text-sm text-neutral-500">
-          Saison {currentSeasonId} — démarrée à {new Date(seasonStartedAt).toLocaleString('fr-FR')} — horloge simulée : {new Date(now).toLocaleString('fr-FR')}
+          Saison {currentSeasonId} — démarrée à {new Date(seasonStartedAt).toLocaleString('fr-FR')} — horloge simulée :{' '}
+          <span className="tabular-nums text-neutral-300">{new Date(now).toLocaleString('fr-FR')}</span>
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => advanceTime(HOUR_MS)}>+ 1 heure</Button>
-          <Button variant="secondary" onClick={() => advanceTime(8 * HOUR_MS)}>+ 8 heures</Button>
-          <Button variant="secondary" onClick={() => advanceTime(DAY_MS)}>+ 1 jour</Button>
-          <Button variant="secondary" onClick={() => advanceTime(7 * DAY_MS)}>+ 7 jours</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant={clockRunning ? 'secondary' : 'primary'} onClick={() => setClockRunning(!clockRunning)}>
+            {clockRunning ? '⏸ Pause' : '▶ Lecture'}
+          </Button>
+          <span className="text-xs text-neutral-500">Vitesse :</span>
+          {speedPresets.map((speed) => (
+            <Button
+              key={speed}
+              variant={clockSpeed === speed ? 'primary' : 'secondary'}
+              onClick={() => setClockSpeed(speed)}
+            >
+              x{speed}
+            </Button>
+          ))}
           <Button onClick={jumpToTournament}>Sauter à la fin de saison (tournoi)</Button>
         </div>
       </Panel>

@@ -1,4 +1,5 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
+import { useGameClock } from './game/clock'
 import Accueil from './pages/Accueil'
 import MesHeros from './pages/MesHeros'
 import Missions from './pages/Missions'
@@ -20,6 +21,8 @@ const links = [
 ]
 
 function App() {
+  useGameClock()
+
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
       <header className="border-b border-neutral-800 bg-neutral-900/60">

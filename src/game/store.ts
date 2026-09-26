@@ -47,6 +47,8 @@ interface GameState {
   equippedByHero: Record<string, Partial<Record<EquipmentSlot, string>>>
   missions: MissionInProgress[]
   tournament: TournamentState | null
+  clockRunning: boolean
+  clockSpeed: number
 
   getHero: (heroId: string) => Hero | undefined
   getEquippedItems: (heroId: string) => EquipmentItem[]
@@ -74,6 +76,8 @@ interface GameState {
   finishMissionInstantly: (missionId: string) => void
   jumpToTournament: () => void
   grantResources: (amount: number) => void
+  setClockRunning: (running: boolean) => void
+  setClockSpeed: (speed: number) => void
 }
 
 function heroLevelCap(hero: Hero): number {
@@ -90,6 +94,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   equippedByHero: {},
   missions: [],
   tournament: null,
+  clockRunning: true,
+  clockSpeed: 500,
 
   getHero: (heroId) => get().heroes.find((h) => h.permanent.id === heroId),
 
@@ -334,6 +340,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       for (const resource of resourceDefs) next[resource.id] = (next[resource.id] ?? 0) + amount
       return { resources: next }
     }),
+
+  setClockRunning: (running) => set({ clockRunning: running }),
+  setClockSpeed: (speed) => set({ clockSpeed: Math.max(1, speed) }),
 }))
 
 function mergeResources(stock: ResourceStock, gained: Record<string, number>): ResourceStock {
