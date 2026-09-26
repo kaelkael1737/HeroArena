@@ -1,49 +1,76 @@
 import { useState } from 'react'
+import { canAttack } from '../game/logic/raid'
 import { useGameStore } from '../game/store'
 import { Button, Panel } from '../ui/Panel'
+
+const rarityLabels: Record<string, string> = {
+  commun: 'Commun',
+  peu_commun: 'Peu commun',
+  rare: 'Rare',
+  epique: 'Épique',
+  legendaire: 'Légendaire',
+}
+
+function formatRemaining(ms: number): string {
+  const totalSeconds = Math.ceil(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}min ${seconds}s`
+}
 
 export default function Arene() {
   const heroes = useGameStore((s) => s.heroes)
   const heroIds = heroes.map((h) => h.permanent.id)
   const trainHero = useGameStore((s) => s.trainHero)
-  const tournament = useGameStore((s) => s.tournament)
-  const startTournament = useGameStore((s) => s.startTournament)
-  const runTournamentRound = useGameStore((s) => s.runTournamentRound)
+  const monsters = useGameStore((s) => s.monsters)
+  const now = useGameStore((s) => s.now)
+  const heroRaidCooldowns = useGameStore((s) => s.heroRaidCooldowns)
+  const attackMonster = useGameStore((s) => s.attackMonster)
 
   const [selectedHero, setSelectedHero] = useState(heroIds[0])
   const [lastResult, setLastResult] = useState<{ won: boolean; xpGained: number } | null>(null)
+  const [lastAttack, setLastAttack] = useState<{ damage: number } | null>(null)
 
-  const currentRound = tournament?.rounds[tournament.rounds.length - 1]
+  const hero = heroes.find((h) => h.permanent.id === selectedHero)
+  const eligibleMonsters = hero ? monsters.filter((m) => canAttack(hero.permanent.rarity, hero.progression.level, m)) : []
+  const readyAt = heroRaidCooldowns[selectedHero] ?? 0
+  const onCooldown = now < readyAt
 
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Arène</h1>
 
-      <Panel title="Entraînement">
-        <div className="flex items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-neutral-400">Héros</span>
-            <select
-              className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5"
-              value={selectedHero}
-              onChange={(e) => setSelectedHero(e.target.value)}
-            >
-              {heroes.map((h) => (
-                <option key={h.permanent.id} value={h.permanent.id}>
-                  {h.permanent.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Button
-            onClick={() => {
-              const result = trainHero(selectedHero)
-              if (result) setLastResult(result)
+      <Panel title="Choix du héros">
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-neutral-400">Héros</span>
+          <select
+            className="w-fit rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5"
+            value={selectedHero}
+            onChange={(e) => {
+              setSelectedHero(e.target.value)
+              setLastAttack(null)
+              setLastResult(null)
             }}
           >
-            Combat d'entraînement
-          </Button>
-        </div>
+            {heroes.map((h) => (
+              <option key={h.permanent.id} value={h.permanent.id}>
+                {h.permanent.name} ({rarityLabels[h.permanent.rarity]}, niveau {h.progression.level})
+              </option>
+            ))}
+          </select>
+        </label>
+      </Panel>
+
+      <Panel title="Entraînement">
+        <p className="mb-3 text-sm text-neutral-500">Combat contre une IA générée, pour gagner de l'XP.</p>
+        <Button
+          onClick={() => {
+            const result = trainHero(selectedHero)
+            if (result) setLastResult(result)
+          }}
+        >
+          Combat d'entraînement
+        </Button>
         {lastResult && (
           <p className={`mt-3 text-sm ${lastResult.won ? 'text-emerald-400' : 'text-red-400'}`}>
             {lastResult.won ? 'Victoire' : 'Défaite'} — +{lastResult.xpGained} XP
@@ -51,52 +78,44 @@ export default function Arene() {
         )}
       </Panel>
 
-      <Panel title="Tournoi final">
-        {!tournament && (
-          <Button onClick={startTournament}>Lancer le tournoi (inscrit tous les héros)</Button>
-        )}
-
-        {tournament && (
-          <div className="space-y-4">
-            {tournament.champion && (
-              <p className="rounded-md bg-amber-500/10 px-3 py-2 text-amber-300">
-                Champion : <strong>{tournament.champion}</strong>
-              </p>
-            )}
-
-            {tournament.active && (
-              <Button onClick={runTournamentRound}>
-                Lancer la ronde {currentRound?.[0]?.round}
-              </Button>
-            )}
-
-            {tournament.rounds.map((round, i) => (
-              <div key={i}>
-                <h3 className="mb-1 text-sm font-medium text-neutral-400">Ronde {i + 1}</h3>
-                <div className="space-y-1">
-                  {round.map((match, j) => (
-                    <div key={j} className="rounded-md border border-neutral-800 px-3 py-2 text-sm">
-                      {match.heroBId ? (
-                        <span>
-                          {match.heroAId} vs {match.heroBId}
-                          {match.result && (
-                            <span className="ml-2 text-amber-400">
-                              → {match.result.winnerHeroId} gagne ({match.result.heroAScore} - {match.result.heroBScore})
-                            </span>
-                          )}
-                        </span>
-                      ) : (
-                        <span>
-                          {match.heroAId} <span className="text-neutral-500">(bye, qualifié d'office)</span>
-                        </span>
-                      )}
-                    </div>
-                  ))}
+      <Panel title="Monstre(s) attaquable(s) par ce héros">
+        <p className="mb-3 text-sm text-neutral-500">
+          Dégâts déterministes selon les attributs du héros, sans facteur de hasard. Cooldown réduit par l'Énergie.
+        </p>
+        {eligibleMonsters.length === 0 && <p className="text-neutral-600">Aucun monstre dans la fenêtre de niveau de ce héros.</p>}
+        <div className="space-y-3">
+          {eligibleMonsters.map((m) => {
+            const pct = Math.max(0, Math.round((m.currentHp / m.maxHp) * 100))
+            return (
+              <div key={m.id} className="rounded-md border border-neutral-800 p-3">
+                <div className="mb-1 flex justify-between text-sm">
+                  <span>
+                    {rarityLabels[m.rarity]} — niveau {m.levelBracket}
+                  </span>
+                  <span className="text-neutral-500">
+                    {m.currentHp.toLocaleString('fr-FR')} / {m.maxHp.toLocaleString('fr-FR')} PV
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-neutral-800">
+                  <div className="h-full bg-red-500" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-xs text-amber-400">Cagnotte : {m.pot.toLocaleString('fr-FR')} parts</span>
+                  <Button
+                    disabled={onCooldown}
+                    onClick={() => {
+                      const result = attackMonster(selectedHero, m.id)
+                      if (result) setLastAttack(result)
+                    }}
+                  >
+                    {onCooldown ? `Récup. ${formatRemaining(readyAt - now)}` : 'Attaquer'}
+                  </Button>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            )
+          })}
+        </div>
+        {lastAttack && <p className="mt-3 text-sm text-red-400">Coup porté : {lastAttack.damage.toLocaleString('fr-FR')} dégâts</p>}
       </Panel>
     </div>
   )

@@ -4,10 +4,16 @@ import { Button, Panel } from '../ui/Panel'
 
 const speedPresets = [1, 60, 500, 2000]
 
+const rarityLabels: Record<string, string> = {
+  commun: 'Commun',
+  peu_commun: 'Peu commun',
+  rare: 'Rare',
+  epique: 'Épique',
+  legendaire: 'Légendaire',
+}
+
 export default function Debug() {
   const now = useGameStore((s) => s.now)
-  const seasonStartedAt = useGameStore((s) => s.seasonStartedAt)
-  const currentSeasonId = useGameStore((s) => s.currentSeasonId)
   const missions = useGameStore((s) => s.missions)
   const heroes = useGameStore((s) => s.heroes)
   const clockRunning = useGameStore((s) => s.clockRunning)
@@ -15,9 +21,9 @@ export default function Debug() {
   const setClockRunning = useGameStore((s) => s.setClockRunning)
   const setClockSpeed = useGameStore((s) => s.setClockSpeed)
   const finishMissionInstantly = useGameStore((s) => s.finishMissionInstantly)
-  const jumpToTournament = useGameStore((s) => s.jumpToTournament)
-  const startNewSeason = useGameStore((s) => s.startNewSeason)
   const grantResources = useGameStore((s) => s.grantResources)
+  const monsters = useGameStore((s) => s.monsters)
+  const debugDamageMonster = useGameStore((s) => s.debugDamageMonster)
 
   const activeMissions = missions.filter((m) => !m.claimed && m.endsAt > now)
 
@@ -27,7 +33,7 @@ export default function Debug() {
 
       <Panel title="Horloge">
         <p className="mb-3 text-sm text-neutral-500">
-          Saison {currentSeasonId} — démarrée à {new Date(seasonStartedAt).toLocaleString('fr-FR')} — horloge simulée :{' '}
+          Horloge simulée :{' '}
           <span className="tabular-nums text-neutral-300">{new Date(now).toLocaleString('fr-FR')}</span>
         </p>
         <div className="flex flex-wrap items-center gap-2">
@@ -44,7 +50,6 @@ export default function Debug() {
               x{speed}
             </Button>
           ))}
-          <Button onClick={jumpToTournament}>Sauter à la fin de saison (tournoi)</Button>
         </div>
       </Panel>
 
@@ -71,14 +76,24 @@ export default function Debug() {
         <Button variant="secondary" onClick={() => grantResources(100)}>+ 100 de chaque ressource</Button>
       </Panel>
 
-      <Panel title="Saison">
+      <Panel title="Monstres">
         <p className="mb-3 text-sm text-neutral-500">
-          Les héros et l'équipement gardent toute leur progression : une nouvelle saison ne fait
-          qu'ouvrir un nouveau tournoi et relancer le classement.
+          Avec seulement quelques participants simulés, un monstre met des heures réelles à mourir
+          même à x2000. Ce raccourci inflige de gros dégâts sans les attribuer à personne (la
+          cagnotte reste répartie entre les vrais participants) pour tester la mort/renaissance.
         </p>
-        <Button variant="danger" onClick={startNewSeason}>
-          Démarrer une nouvelle saison
-        </Button>
+        <div className="space-y-1">
+          {monsters.map((m) => (
+            <div key={m.id} className="flex items-center justify-between rounded-md border border-neutral-800 px-3 py-2 text-sm">
+              <span>
+                {rarityLabels[m.rarity]} — niveau {m.levelBracket} ({Math.round((m.currentHp / m.maxHp) * 100)}% PV)
+              </span>
+              <Button variant="secondary" onClick={() => debugDamageMonster(m.id, Math.round(m.maxHp * 0.9))}>
+                -90 % PV
+              </Button>
+            </div>
+          ))}
+        </div>
       </Panel>
     </div>
   )

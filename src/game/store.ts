@@ -14,14 +14,18 @@ import {
   startMission as startMissionLogic,
 } from './logic/missions'
 import { nextRarity } from './logic/rarity'
-import { createRng } from './logic/rng'
 import {
-  createBracket,
-  getChampion,
-  isTournamentOver,
-  nextRound,
-  runRound,
-} from './logic/tournament'
+  applyDamage,
+  canAttack,
+  createAllMonsters,
+  distributeRewards,
+  processBotAttacks,
+  raidCooldownMs,
+  raidDamage,
+  respawnMonster,
+} from './logic/raid'
+import { generateBots } from './logic/raidBots'
+import { createRng } from './logic/rng'
 import { applyXpGain } from './logic/xp'
 import { heroes as startingHeroes } from './data/heroes'
 import type {
@@ -31,24 +35,27 @@ import type {
   HeroAttributes,
   MissionDurationId,
   MissionInProgress,
-  TournamentState,
+  Monster,
+  RaidBot,
   ZoneId,
 } from './types'
 
-const DAY_MS = 24 * 60 * 60 * 1000
+export const LOCAL_PLAYER_ID = 'moi'
 
 interface GameState {
-  currentSeasonId: number
-  seasonStartedAt: number
   now: number
   heroes: Hero[]
   resources: ResourceStock
   equipmentInventory: EquipmentItem[]
   equippedByHero: Record<string, Partial<Record<EquipmentSlot, string>>>
   missions: MissionInProgress[]
-  tournament: TournamentState | null
   clockRunning: boolean
   clockSpeed: number
+
+  monsters: Monster[]
+  bots: RaidBot[]
+  heroRaidCooldowns: Record<string, number>
+  raidRewards: Record<string, number>
 
   getHero: (heroId: string) => Hero | undefined
   getEquippedItems: (heroId: string) => EquipmentItem[]
@@ -65,37 +72,42 @@ interface GameState {
   fuseEquipmentItems: (instanceIds: string[]) => void
   fuseHeroes: (heroIds: string[]) => void
 
-  startTournament: () => void
-  runTournamentRound: () => void
   trainHero: (heroId: string) => { won: boolean; xpGained: number } | undefined
-
-  startNewSeason: () => void
+  attackMonster: (heroId: string, monsterId: string) => { damage: number } | undefined
 
   // Debug
   advanceTime: (ms: number) => void
   finishMissionInstantly: (missionId: string) => void
-  jumpToTournament: () => void
   grantResources: (amount: number) => void
   setClockRunning: (running: boolean) => void
   setClockSpeed: (speed: number) => void
+  debugDamageMonster: (monsterId: string, amount: number) => void
 }
 
 function heroLevelCap(hero: Hero): number {
   return config.heroes.levelCapByRarity[hero.permanent.rarity]
 }
 
+function mergeRewards(existing: Record<string, number>, gained: Record<string, number>): Record<string, number> {
+  const next = { ...existing }
+  for (const [id, amount] of Object.entries(gained)) next[id] = (next[id] ?? 0) + amount
+  return next
+}
+
 export const useGameStore = create<GameState>((set, get) => ({
-  currentSeasonId: 1,
-  seasonStartedAt: Date.now(),
   now: Date.now(),
   heroes: startingHeroes,
   resources: {},
   equipmentInventory: [],
   equippedByHero: {},
   missions: [],
-  tournament: null,
   clockRunning: true,
   clockSpeed: 500,
+
+  monsters: createAllMonsters(),
+  bots: generateBots(),
+  heroRaidCooldowns: {},
+  raidRewards: {},
 
   getHero: (heroId) => get().heroes.find((h) => h.permanent.id === heroId),
 
@@ -260,38 +272,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     })
   },
 
-  startTournament: () => {
-    const state = get()
-    const competitors = state.heroes.map((h) => ({ id: h.permanent.id, level: h.progression.level }))
-    set({ tournament: createBracket(state.currentSeasonId, competitors) })
-  },
-
-  runTournamentRound: () => {
-    const state = get()
-    if (!state.tournament || !state.tournament.active) return
-    const combatants: Record<string, CombatantInput> = {}
-    for (const hero of state.heroes) {
-      const attrs = state.getEffectiveAttributes(hero.permanent.id)
-      if (attrs) combatants[hero.permanent.id] = { id: hero.permanent.id, level: hero.progression.level, attributes: attrs }
-    }
-
-    const currentRound = state.tournament.rounds[state.tournament.rounds.length - 1]
-    const resolvedRound = runRound(currentRound, combatants, (match, i) =>
-      hashString(`${state.currentSeasonId}-${match.round}-${i}`),
-    )
-    const rounds = [...state.tournament.rounds.slice(0, -1), resolvedRound]
-    const updated: TournamentState = { ...state.tournament, rounds }
-
-    if (isTournamentOver(updated)) {
-      set({ tournament: { ...updated, active: false, champion: getChampion(updated) } })
-      return
-    }
-
-    const roundNumber = resolvedRound[0].round + 1
-    const nextRoundMatches = nextRound(resolvedRound, roundNumber)
-    set({ tournament: { ...updated, rounds: [...rounds, nextRoundMatches] } })
-  },
-
   trainHero: (heroId) => {
     const state = get()
     const hero = state.getHero(heroId)
@@ -312,26 +292,49 @@ export const useGameStore = create<GameState>((set, get) => ({
     return { won, xpGained }
   },
 
-  startNewSeason: () => {
+  attackMonster: (heroId, monsterId) => {
     const state = get()
+    const hero = state.getHero(heroId)
+    const monster = state.monsters.find((m) => m.id === monsterId)
+    if (!hero || !monster) return undefined
+    if (!canAttack(hero.permanent.rarity, hero.progression.level, monster)) return undefined
+    if (state.now < (state.heroRaidCooldowns[heroId] ?? 0)) return undefined
+
+    const attributes = getEffectiveAttributes(hero, state.getEquippedItems(heroId))
+    const damage = raidDamage(attributes, hero.progression.level)
+    const { monster: updated, killed } = applyDamage(monster, LOCAL_PLAYER_ID, damage)
+
+    let monsters = state.monsters.map((m) => (m.id === monster.id ? updated : m))
+    let raidRewards = state.raidRewards
+    if (killed) {
+      raidRewards = mergeRewards(raidRewards, distributeRewards(updated))
+      monsters = monsters.map((m) => (m.id === monster.id ? respawnMonster(updated) : m))
+    }
+
     set({
-      currentSeasonId: state.currentSeasonId + 1,
-      seasonStartedAt: state.now,
-      tournament: null,
-      missions: state.missions.filter((m) => !m.claimed),
+      monsters,
+      raidRewards,
+      heroRaidCooldowns: { ...state.heroRaidCooldowns, [heroId]: state.now + raidCooldownMs(attributes.energy) },
     })
+
+    return { damage }
   },
 
-  advanceTime: (ms) => set((state) => ({ now: state.now + ms })),
+  advanceTime: (ms) =>
+    set((state) => {
+      const now = state.now + ms
+      const botResult = processBotAttacks(state.monsters, state.bots, now)
+      return {
+        now,
+        monsters: botResult.monsters,
+        bots: botResult.bots,
+        raidRewards: mergeRewards(state.raidRewards, botResult.rewardGains),
+      }
+    }),
 
   finishMissionInstantly: (missionId) =>
     set((state) => ({
       missions: state.missions.map((m) => (m.id === missionId ? { ...m, endsAt: state.now } : m)),
-    })),
-
-  jumpToTournament: () =>
-    set((state) => ({
-      now: state.seasonStartedAt + config.season.durationDays * DAY_MS,
     })),
 
   grantResources: (amount) =>
@@ -343,6 +346,22 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setClockRunning: (running) => set({ clockRunning: running }),
   setClockSpeed: (speed) => set({ clockSpeed: Math.max(1, speed) }),
+
+  debugDamageMonster: (monsterId, amount) => {
+    const state = get()
+    const monster = state.monsters.find((m) => m.id === monsterId)
+    if (!monster) return
+    const currentHp = Math.max(0, monster.currentHp - amount)
+    const updated = { ...monster, currentHp }
+
+    let monsters = state.monsters.map((m) => (m.id === monsterId ? updated : m))
+    let raidRewards = state.raidRewards
+    if (currentHp <= 0) {
+      raidRewards = mergeRewards(raidRewards, distributeRewards(updated))
+      monsters = monsters.map((m) => (m.id === monsterId ? respawnMonster(updated) : m))
+    }
+    set({ monsters, raidRewards })
+  },
 }))
 
 function mergeResources(stock: ResourceStock, gained: Record<string, number>): ResourceStock {

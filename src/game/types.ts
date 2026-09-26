@@ -100,23 +100,27 @@ export interface MissionInProgress {
   claimed: boolean
 }
 
-export interface CombatResult {
-  heroAScore: number
-  heroBScore: number
-  winnerHeroId: string
-  seed: number
+/**
+ * Monstre partagé : un par (rareté × palier de niveau). Les héros de cette rareté, dont le
+ * niveau tombe dans la fenêtre du palier, peuvent l'attaquer. Sa cagnotte se répartit au
+ * prorata des dégâts cumulés de chaque joueur quand ses PV tombent à 0, puis il renaît.
+ */
+export interface Monster {
+  id: string
+  rarity: Rarity
+  levelBracket: number
+  maxHp: number
+  currentHp: number
+  pot: number
+  damageByPlayer: Record<string, number>
 }
 
-export interface TournamentMatch {
-  round: number
-  heroAId: string
-  heroBId: string | null // null = bye (pas d'adversaire)
-  result: CombatResult | null
-}
-
-export interface TournamentState {
-  seasonId: number
-  active: boolean
-  champion: string | null
-  rounds: TournamentMatch[][]
+/** Participant simulé (bot) pour tester le combat de monstre en phase 1, sans vrai multijoueur. */
+export interface RaidBot {
+  id: string
+  playerName: string
+  rarity: Rarity
+  level: number
+  attributes: HeroAttributes
+  nextAttackAt: number
 }

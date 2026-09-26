@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { config } from './config'
-import { useGameStore } from './store'
+import { LOCAL_PLAYER_ID, useGameStore } from './store'
 
 function resetStore() {
   useGameStore.setState(useGameStore.getInitialState(), true)
@@ -95,6 +95,80 @@ describe('fuseHeroes', () => {
     const ids = communHeroes.map((h) => h.permanent.id)
     useGameStore.getState().fuseHeroes(ids)
     expect(useGameStore.getState().heroes).toHaveLength(state.heroes.length)
+  })
+})
+
+describe('attackMonster', () => {
+  it('inflige des dégâts déterministes et applique un cooldown', () => {
+    const hero = useGameStore.getState().heroes.find((h) => h.permanent.rarity === 'commun')!
+    const monster = useGameStore.getState().monsters.find((m) => m.rarity === 'commun' && m.levelBracket === 5)!
+    const result = useGameStore.getState().attackMonster(hero.permanent.id, monster.id)
+    expect(result?.damage).toBeGreaterThan(0)
+    const updated = useGameStore.getState().monsters.find((m) => m.id === monster.id)!
+    expect(updated.currentHp).toBe(monster.maxHp - result!.damage)
+    expect(updated.damageByPlayer[LOCAL_PLAYER_ID]).toBe(result!.damage)
+  })
+
+  it('refuse une seconde attaque avant la fin du cooldown', () => {
+    const hero = useGameStore.getState().heroes.find((h) => h.permanent.rarity === 'commun')!
+    const monster = useGameStore.getState().monsters.find((m) => m.rarity === 'commun' && m.levelBracket === 5)!
+    useGameStore.getState().attackMonster(hero.permanent.id, monster.id)
+    expect(useGameStore.getState().attackMonster(hero.permanent.id, monster.id)).toBeUndefined()
+  })
+
+  it("autorise de nouveau une fois le cooldown écoulé", () => {
+    const hero = useGameStore.getState().heroes.find((h) => h.permanent.rarity === 'commun')!
+    const monster = useGameStore.getState().monsters.find((m) => m.rarity === 'commun' && m.levelBracket === 5)!
+    useGameStore.getState().attackMonster(hero.permanent.id, monster.id)
+    useGameStore.getState().advanceTime(2 * 60 * 60 * 1000)
+    expect(useGameStore.getState().attackMonster(hero.permanent.id, monster.id)?.damage).toBeGreaterThan(0)
+  })
+
+  it('refuse si la rareté du héros ne correspond pas au monstre', () => {
+    const hero = useGameStore.getState().heroes.find((h) => h.permanent.rarity === 'commun')!
+    const monster = useGameStore.getState().monsters.find((m) => m.rarity === 'rare')!
+    expect(useGameStore.getState().attackMonster(hero.permanent.id, monster.id)).toBeUndefined()
+  })
+
+  it('répartit la cagnotte et fait renaître le monstre au coup fatal', () => {
+    const hero = useGameStore.getState().heroes.find((h) => h.permanent.rarity === 'commun')!
+    const monster = useGameStore.getState().monsters.find((m) => m.rarity === 'commun' && m.levelBracket === 5)!
+    useGameStore.setState({
+      monsters: useGameStore.getState().monsters.map((m) => (m.id === monster.id ? { ...m, currentHp: 1 } : m)),
+    })
+    useGameStore.getState().attackMonster(hero.permanent.id, monster.id)
+    const respawned = useGameStore.getState().monsters.find((m) => m.id === monster.id)!
+    expect(respawned.currentHp).toBe(respawned.maxHp)
+    expect(useGameStore.getState().raidRewards[LOCAL_PLAYER_ID]).toBeGreaterThan(0)
+  })
+})
+
+describe('advanceTime (attaques automatiques des bots)', () => {
+  it('les bots font baisser les PV des monstres quand le temps avance', () => {
+    const monster = useGameStore.getState().monsters.find((m) => m.rarity === 'commun' && m.levelBracket === 5)!
+    useGameStore.getState().advanceTime(3 * 60 * 60 * 1000)
+    const updated = useGameStore.getState().monsters.find((m) => m.id === monster.id)!
+    expect(updated.currentHp).toBeLessThan(monster.maxHp)
+  })
+})
+
+describe('debugDamageMonster', () => {
+  it('réduit les PV sans attribuer les dégâts à un joueur', () => {
+    const monster = useGameStore.getState().monsters.find((m) => m.rarity === 'commun' && m.levelBracket === 5)!
+    useGameStore.getState().debugDamageMonster(monster.id, 1000)
+    const updated = useGameStore.getState().monsters.find((m) => m.id === monster.id)!
+    expect(updated.currentHp).toBe(monster.maxHp - 1000)
+    expect(updated.damageByPlayer).toEqual({})
+  })
+
+  it('déclenche la mort/renaissance et répartit la cagnotte entre les vrais participants', () => {
+    const hero = useGameStore.getState().heroes.find((h) => h.permanent.rarity === 'commun')!
+    const monster = useGameStore.getState().monsters.find((m) => m.rarity === 'commun' && m.levelBracket === 5)!
+    useGameStore.getState().attackMonster(hero.permanent.id, monster.id)
+    useGameStore.getState().debugDamageMonster(monster.id, monster.maxHp)
+    const respawned = useGameStore.getState().monsters.find((m) => m.id === monster.id)!
+    expect(respawned.currentHp).toBe(respawned.maxHp)
+    expect(useGameStore.getState().raidRewards[LOCAL_PLAYER_ID]).toBeGreaterThan(0)
   })
 })
 

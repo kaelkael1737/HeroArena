@@ -9,14 +9,6 @@ import type {
 
 /** Toutes les valeurs d'équilibrage du jeu. Modifier ici, jamais en dur ailleurs. */
 export const config = {
-  season: {
-    durationDays: 28,
-    tournamentDurationHours: 24,
-    /** Bonus de départ pour les vétérans (désactivé par défaut). */
-    veteranBonusEnabled: false,
-    veteranBonusPoints: 0,
-  },
-
   xp: {
     /** xp requis pour atteindre `level` depuis 0. */
     xpForLevel: (level: number) => Math.round(100 * level ** 1.5),
@@ -68,6 +60,33 @@ export const config = {
   fusion: {
     /** Nombre de NFT de même rareté, au niveau max, nécessaires pour en fusionner un de rareté supérieure. */
     itemsRequired: 3,
+  },
+
+  raid: {
+    /** Largeur du palier de niveau autour du centre (ex. centre 35 → attaquable de 30 à 40). */
+    bracketWindow: 5,
+    /** Écart entre deux centres de palier consécutifs. */
+    bracketSpacing: 10,
+    /** Poids des attributs dans les dégâts par attaque (Force domine, pas de facteur de hasard). */
+    damageWeights: { strength: 3, agility: 1, luck: 1 } satisfies Partial<Record<keyof import('./types').HeroAttributes, number>>,
+    /** Croissance des dégâts par niveau (fraction du total, au-delà du niveau 1). */
+    damageLevelGrowth: 0.05,
+    /** Cooldown de base (minutes) entre deux attaques, réduit par l'Énergie du héros. */
+    baseCooldownMinutes: 60,
+    /** Plus ce diviseur est petit, plus l'Énergie réduit vite le cooldown. */
+    cooldownEnergyDivisor: 20,
+    /** PV du monstre au palier de niveau le plus bas (centre 5) de chaque rareté. */
+    baseHpByRarity: {
+      commun: 500_000,
+      peu_commun: 2_000_000,
+      rare: 8_000_000,
+      epique: 30_000_000,
+      legendaire: 100_000_000,
+    } satisfies Record<Rarity, number>,
+    /** Croissance des PV (et de la cagnotte) par niveau, même logique que les dégâts. */
+    hpLevelGrowth: 0.05,
+    /** 1 unité de cagnotte pour ce nombre de PV max (unité neutre en attendant la conversion WAX réelle). */
+    hpPerPotUnit: 100,
   },
 
   missions: {
