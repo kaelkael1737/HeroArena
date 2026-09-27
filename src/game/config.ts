@@ -36,13 +36,17 @@ export const config = {
       epique: 45,
       legendaire: 60,
     } satisfies Record<Rarity, number>,
-    /** Fourchette de la somme des attributs de base à la création. Écart ×~1,7 par palier, ×9 entre commun et légendaire. */
-    attributeSumRangeByRarity: {
-      commun: [50, 70],
-      peu_commun: [90, 120],
-      rare: [160, 210],
-      epique: [280, 360],
-      legendaire: [480, 600],
+    /**
+     * Plage de CHAQUE attribut (Chance, Force, Santé, Énergie, Agilité) selon la rareté.
+     * Contiguës et sans chevauchement : le pire héros d'une rareté ne peut jamais dépasser
+     * le meilleur de la rareté du dessous, sur aucun attribut.
+     */
+    attributeRangeByRarity: {
+      commun: [5, 15],
+      peu_commun: [15, 30],
+      rare: [30, 50],
+      epique: [50, 80],
+      legendaire: [80, 125],
     } satisfies Record<Rarity, [number, number]>,
   },
 

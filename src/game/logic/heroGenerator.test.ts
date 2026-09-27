@@ -3,16 +3,37 @@ import { config } from '../config'
 import { computeRarityScore, generateHero } from './heroGenerator'
 import { createRng } from './rng'
 
+const rarityOrder = ['commun', 'peu_commun', 'rare', 'epique', 'legendaire'] as const
+
 describe('generateHero', () => {
-  it('respecte la fourchette d\'attributs de la rareté demandée', () => {
-    for (const rarity of ['commun', 'peu_commun', 'rare', 'epique', 'legendaire'] as const) {
-      const [min, max] = config.heroes.attributeSumRangeByRarity[rarity]
+  it('chaque attribut individuel reste dans la plage de la rareté demandée', () => {
+    for (const rarity of rarityOrder) {
+      const [min, max] = config.heroes.attributeRangeByRarity[rarity]
       for (let seed = 0; seed < 20; seed += 1) {
         const hero = generateHero(rarity, createRng(seed), `test-${rarity}-${seed}`)
-        const sum = Object.values(hero.permanent.base).reduce((a, b) => a + b, 0)
-        expect(sum).toBeGreaterThanOrEqual(min)
-        expect(sum).toBeLessThanOrEqual(max)
+        for (const value of Object.values(hero.permanent.base)) {
+          expect(value).toBeGreaterThanOrEqual(min)
+          expect(value).toBeLessThanOrEqual(max)
+        }
         expect(hero.permanent.rarity).toBe(rarity)
+      }
+    }
+  })
+
+  it('les plages de raretés sont contiguës et ne se chevauchent jamais', () => {
+    for (let i = 0; i < rarityOrder.length - 1; i += 1) {
+      const [, maxBelow] = config.heroes.attributeRangeByRarity[rarityOrder[i]]
+      const [minAbove] = config.heroes.attributeRangeByRarity[rarityOrder[i + 1]]
+      expect(minAbove).toBe(maxBelow)
+    }
+  })
+
+  it('un héros commun ne peut jamais surpasser un héros peu commun sur un attribut', () => {
+    for (let seed = 0; seed < 30; seed += 1) {
+      const commun = generateHero('commun', createRng(seed), 'c')
+      const peuCommun = generateHero('peu_commun', createRng(seed + 1000), 'p')
+      for (const key of Object.keys(commun.permanent.base) as (keyof typeof commun.permanent.base)[]) {
+        expect(commun.permanent.base[key]).toBeLessThanOrEqual(peuCommun.permanent.base[key])
       }
     }
   })

@@ -7,23 +7,32 @@ const attrKeys: (keyof HeroAttributes)[] = ['luck', 'strength', 'health', 'energ
 type Archetype = keyof HeroAttributes | 'balanced'
 const archetypes: Archetype[] = ['luck', 'strength', 'health', 'energy', 'agility', 'balanced']
 
-function buildAttributes(sum: number, archetype: Archetype): HeroAttributes {
+/**
+ * Tire chaque attribut indépendamment dans la même plage [min, max] de la rareté — jamais au-delà,
+ * donc un attribut d'une rareté ne peut jamais dépasser le plancher de la rareté supérieure.
+ * L'archétype ne fait que biaiser où, dans cette plage, l'attribut tombe (haut pour l'attribut
+ * dominant, bas pour les autres) ; il ne l'élargit jamais.
+ */
+function buildAttributes(range: [number, number], archetype: Archetype, rng: () => number): HeroAttributes {
+  const [min, max] = range
+  const mid = (min + max) / 2
+
   if (archetype === 'balanced') {
-    const base = Math.floor(sum / 5)
-    const remainder = sum - base * 5
-    const attrs: HeroAttributes = { luck: base, strength: base, health: base, energy: base, agility: base }
-    for (let i = 0; i < remainder; i += 1) attrs[attrKeys[i % 5]] += 1
-    return attrs
+    return {
+      luck: randomInt(rng, min, max),
+      strength: randomInt(rng, min, max),
+      health: randomInt(rng, min, max),
+      energy: randomInt(rng, min, max),
+      agility: randomInt(rng, min, max),
+    }
   }
-  const primaryShare = Math.round(sum * 0.36)
-  const rest = sum - primaryShare
-  const others = attrKeys.filter((k) => k !== archetype)
-  const restBase = Math.floor(rest / 4)
-  const remainder = rest - restBase * 4
-  const attrs: HeroAttributes = { luck: 0, strength: 0, health: 0, energy: 0, agility: 0 }
-  attrs[archetype] = primaryShare
-  for (const k of others) attrs[k] = restBase
-  for (let i = 0; i < remainder; i += 1) attrs[others[i % 4]] += 1
+
+  const attrs = {} as HeroAttributes
+  for (const key of attrKeys) {
+    attrs[key] = key === archetype
+      ? randomInt(rng, Math.ceil(mid), max)
+      : randomInt(rng, min, Math.floor(mid))
+  }
   return attrs
 }
 
@@ -34,10 +43,9 @@ export function computeRarityScore(attrs: HeroAttributes): number {
 
 /** Génère un héros neuf pour une rareté donnée (mint initial ou résultat d'une fusion). */
 export function generateHero(rarity: Rarity, rng: () => number, id: string): Hero {
-  const [min, max] = config.heroes.attributeSumRangeByRarity[rarity]
-  const sum = randomInt(rng, min, max)
+  const range = config.heroes.attributeRangeByRarity[rarity]
   const archetype = archetypes[randomInt(rng, 0, archetypes.length - 1)]
-  const base = buildAttributes(sum, archetype)
+  const base = buildAttributes(range, archetype, rng)
 
   const permanent: HeroPermanent = {
     id,
