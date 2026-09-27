@@ -34,7 +34,7 @@ describe('startMission', () => {
 
 describe('resolveMission', () => {
   it('donne entre 1 et 3 ressources différentes, et de l\'XP', () => {
-    const nft = makeResourceNft({ templateId: 'foret_legendaire', level: 10 })
+    const nft = makeResourceNft({ templateId: 'foret', rarity: 'legendaire', level: 10 })
     const mission = startMission(nft, 'moyenne', 0, () => 'm1')
     for (let seed = 0; seed < 20; seed += 1) {
       const result = resolveMission(nft, mission, createRng(seed))
@@ -46,7 +46,7 @@ describe('resolveMission', () => {
   })
 
   it("un NFT commun ne ramène JAMAIS autre chose que la ressource de rang 1 de sa zone", () => {
-    const nft = makeResourceNft({ templateId: 'foret_commun' })
+    const nft = makeResourceNft({ templateId: 'foret', rarity: 'commun' })
     const mission = startMission(nft, 'expedition', 0, () => 'm1')
     for (let seed = 0; seed < 50; seed += 1) {
       const result = resolveMission(nft, mission, createRng(seed))
@@ -55,7 +55,7 @@ describe('resolveMission', () => {
   })
 
   it('un NFT légendaire peut ramener les 5 rangs de sa zone (sur assez de tirages)', () => {
-    const nft = makeResourceNft({ templateId: 'mine_legendaire' })
+    const nft = makeResourceNft({ templateId: 'mine', rarity: 'legendaire' })
     const mission = startMission(nft, 'expedition', 0, () => 'm1')
     const seen = new Set<string>()
     for (let seed = 0; seed < 200; seed += 1) {
@@ -66,7 +66,7 @@ describe('resolveMission', () => {
   })
 
   it('un NFT de la mine ne donne jamais une ressource d\'une autre zone', () => {
-    const nft = makeResourceNft({ templateId: 'mine_legendaire' })
+    const nft = makeResourceNft({ templateId: 'mine', rarity: 'legendaire' })
     const mission = startMission(nft, 'expedition', 0, () => 'm1')
     for (let seed = 0; seed < 50; seed += 1) {
       const result = resolveMission(nft, mission, createRng(seed))
@@ -85,7 +85,7 @@ describe('resolveMission', () => {
   })
 
   it('la ressource de rang 1 rapporte en moyenne plus par tirage que celle de rang 5', () => {
-    const nft = makeResourceNft({ templateId: 'foret_legendaire', level: 1 })
+    const nft = makeResourceNft({ templateId: 'foret', rarity: 'legendaire', level: 1 })
     const mission = startMission(nft, 'courte', 0, () => 'm1')
     let totalRank1 = 0
     let totalRank5 = 0
@@ -98,8 +98,8 @@ describe('resolveMission', () => {
   })
 
   it('un NFT de niveau/rareté plus élevé rapporte en moyenne plus de ressources', () => {
-    const low = makeResourceNft({ templateId: 'foret_commun', level: 1 })
-    const high = makeResourceNft({ templateId: 'foret_legendaire', level: 20 })
+    const low = makeResourceNft({ templateId: 'foret', rarity: 'commun', level: 1 })
+    const high = makeResourceNft({ templateId: 'foret', rarity: 'legendaire', level: 20 })
     const mission = startMission(low, 'moyenne', 0, () => 'm1')
 
     let totalLow = 0

@@ -28,7 +28,6 @@ import { generateBots } from './logic/raidBots'
 import {
   applyNftXpGain,
   canFuseResourceNfts,
-  findResourceNftTemplate,
   fuseResourceNfts,
   nftLevelCap,
 } from './logic/resourceNfts'
@@ -44,6 +43,7 @@ import type {
   MissionInProgress,
   Monster,
   RaidBot,
+  Rarity,
   ResourceNft,
 } from './types'
 
@@ -69,7 +69,7 @@ interface GameState {
   getEquippedItems: (heroId: string) => EquipmentItem[]
   getEffectiveAttributes: (heroId: string) => HeroAttributes | undefined
 
-  addResourceNft: (templateId: string) => void
+  addResourceNft: (templateId: string, rarity: Rarity) => void
   startMission: (nftId: string, durationId: MissionDurationId) => void
   claimMission: (missionId: string) => void
   fuseResourceNftItems: (instanceIds: string[]) => void
@@ -137,10 +137,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     return getEffectiveAttributes(hero, state.getEquippedItems(heroId))
   },
 
-  addResourceNft: (templateId) => {
+  addResourceNft: (templateId, rarity) => {
     const template = resourceNftTemplates.find((t) => t.id === templateId)
     if (!template) return
-    const nft: ResourceNft = { instanceId: crypto.randomUUID(), templateId, level: 0, xp: 0 }
+    const nft: ResourceNft = { instanceId: crypto.randomUUID(), templateId, rarity, level: 0, xp: 0 }
     set((state) => ({ resourceNfts: [...state.resourceNfts, nft] }))
   },
 
@@ -161,8 +161,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const rng = createRng(mission.startedAt + hashString(mission.id))
     const rewards = resolveMission(nft, mission, rng)
-    const template = findResourceNftTemplate(nft.templateId)
-    const xpResult = applyNftXpGain(nft, rewards.xpGained, nftLevelCap(template))
+    const xpResult = applyNftXpGain(nft, rewards.xpGained, nftLevelCap(nft.rarity))
 
     set({
       resources: mergeResources(state.resources, rewards.resources),

@@ -162,33 +162,15 @@ export const zones: Record<ZoneId, {
 }
 
 /**
- * Gabarits des NFT d'exploration : un par (zone × rareté), 5 rangs par zone, comme l'équipement.
- * Un héros ne peut jamais faire de mission — il faut posséder le NFT de la zone visée.
+ * Gabarits des NFT d'exploration : un seul par zone (4 au total). La rareté est un attribut de
+ * l'exemplaire possédé (comme pour les héros), pas du gabarit — un même "Explorateur des bois"
+ * peut exister en commun ou en légendaire, ce n'est jamais un nom différent.
  */
 export const resourceNftTemplates: ResourceNftTemplate[] = [
-  { id: 'foret_commun', name: 'Bûcheron novice', zoneId: 'foret', rarity: 'commun' },
-  { id: 'foret_peu_commun', name: 'Éclaireur des bois', zoneId: 'foret', rarity: 'peu_commun' },
-  { id: 'foret_rare', name: 'Ranger sylvestre', zoneId: 'foret', rarity: 'rare' },
-  { id: 'foret_epique', name: 'Gardien de la canopée', zoneId: 'foret', rarity: 'epique' },
-  { id: 'foret_legendaire', name: 'Esprit de la forêt ancienne', zoneId: 'foret', rarity: 'legendaire' },
-
-  { id: 'mine_commun', name: 'Mineur novice', zoneId: 'mine', rarity: 'commun' },
-  { id: 'mine_peu_commun', name: 'Prospecteur', zoneId: 'mine', rarity: 'peu_commun' },
-  { id: 'mine_rare', name: 'Foreur expérimenté', zoneId: 'mine', rarity: 'rare' },
-  { id: 'mine_epique', name: 'Maître mineur', zoneId: 'mine', rarity: 'epique' },
-  { id: 'mine_legendaire', name: 'Golem des profondeurs', zoneId: 'mine', rarity: 'legendaire' },
-
-  { id: 'marais_commun', name: 'Piégeur novice', zoneId: 'marais', rarity: 'commun' },
-  { id: 'marais_peu_commun', name: 'Pisteur des marais', zoneId: 'marais', rarity: 'peu_commun' },
-  { id: 'marais_rare', name: 'Chasseur de créatures', zoneId: 'marais', rarity: 'rare' },
-  { id: 'marais_epique', name: 'Traqueur redouté', zoneId: 'marais', rarity: 'epique' },
-  { id: 'marais_legendaire', name: 'Ombre du marécage', zoneId: 'marais', rarity: 'legendaire' },
-
-  { id: 'volcan_commun', name: 'Éclaireur volcanique', zoneId: 'volcan', rarity: 'commun' },
-  { id: 'volcan_peu_commun', name: 'Arpenteur de cendres', zoneId: 'volcan', rarity: 'peu_commun' },
-  { id: 'volcan_rare', name: 'Coureur de lave', zoneId: 'volcan', rarity: 'rare' },
-  { id: 'volcan_epique', name: 'Dompteur de flammes', zoneId: 'volcan', rarity: 'epique' },
-  { id: 'volcan_legendaire', name: 'Héraut du volcan', zoneId: 'volcan', rarity: 'legendaire' },
+  { id: 'foret', name: 'Explorateur des bois', zoneId: 'foret' },
+  { id: 'mine', name: 'Prospecteur', zoneId: 'mine' },
+  { id: 'marais', name: 'Pisteur des marais', zoneId: 'marais' },
+  { id: 'volcan', name: 'Éclaireur volcanique', zoneId: 'volcan' },
 ]
 
 export const resources: ResourceDef[] = [

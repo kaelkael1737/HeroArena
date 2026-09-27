@@ -22,5 +22,5 @@ export function makeHero(overrides: Partial<Hero> = {}): Hero {
 }
 
 export function makeResourceNft(overrides: Partial<ResourceNft> = {}): ResourceNft {
-  return { instanceId: 'nft-1', templateId: 'foret_commun', level: 1, xp: 0, ...overrides }
+  return { instanceId: 'nft-1', templateId: 'foret', rarity: 'commun', level: 1, xp: 0, ...overrides }
 }

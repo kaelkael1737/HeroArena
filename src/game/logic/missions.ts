@@ -70,9 +70,9 @@ export function resolveMission(
   const template = findResourceNftTemplate(nft.templateId)
   const zone = zones[template.zoneId]
   const duration = config.missions.durations[mission.durationId]
-  const levelYield = nftYieldMultiplier(template, nft.level)
+  const levelYield = nftYieldMultiplier(nft.rarity, nft.level)
 
-  const maxRank = maxResourceRankForRarity(template.rarity)
+  const maxRank = maxResourceRankForRarity(nft.rarity)
   const accessibleIds = zone.resourceIds.slice(0, maxRank)
   const pool = accessibleIds.map((id, i) => ({ id, weight: config.missions.weightByRank(i + 1) }))
 

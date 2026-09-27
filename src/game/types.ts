@@ -91,20 +91,21 @@ export interface EquipmentItem {
 export type ZoneId = 'foret' | 'mine' | 'marais' | 'volcan'
 
 /**
- * Gabarit d'un NFT d'exploration pour une zone et une rareté données (le "mint" de départ,
- * niveau 1). Un héros ne peut jamais faire de mission : il faut posséder le NFT de la zone.
+ * Gabarit d'un NFT d'exploration : un seul par zone (4 au total), quelle que soit la rareté —
+ * la rareté est un attribut de l'exemplaire possédé, pas du gabarit (comme pour les héros).
+ * Un héros ne peut jamais faire de mission : il faut posséder le NFT de la zone visée.
  */
 export interface ResourceNftTemplate {
   id: string
   name: string
   zoneId: ZoneId
-  rarity: Rarity
 }
 
 /** Un NFT d'exploration possédé : permanent, monte de niveau en accomplissant des missions. */
 export interface ResourceNft {
   instanceId: string
   templateId: string
+  rarity: Rarity
   level: number
   xp: number
 }

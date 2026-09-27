@@ -100,7 +100,7 @@ describe('fuseHeroes', () => {
 
 describe('addResourceNft / startMission / claimMission', () => {
   it("un héros ne peut jamais faire de mission : les missions se font uniquement via un NFT d'exploration", () => {
-    useGameStore.getState().addResourceNft('foret_commun')
+    useGameStore.getState().addResourceNft('foret', 'commun')
     const nft = useGameStore.getState().resourceNfts[0]
 
     useGameStore.getState().startMission(nft.instanceId, 'courte')
@@ -123,7 +123,7 @@ describe('addResourceNft / startMission / claimMission', () => {
   })
 
   it("refuse de démarrer une seconde mission sur un NFT déjà occupé", () => {
-    useGameStore.getState().addResourceNft('mine_commun')
+    useGameStore.getState().addResourceNft('mine', 'commun')
     const nft = useGameStore.getState().resourceNfts[0]
     useGameStore.getState().startMission(nft.instanceId, 'courte')
     useGameStore.getState().startMission(nft.instanceId, 'courte')
@@ -133,7 +133,7 @@ describe('addResourceNft / startMission / claimMission', () => {
 
 describe('fuseResourceNftItems', () => {
   it("fusionne 3 NFT communs de la même zone en 1 NFT peu commun", () => {
-    for (let i = 0; i < 3; i += 1) useGameStore.getState().addResourceNft('foret_commun')
+    for (let i = 0; i < 3; i += 1) useGameStore.getState().addResourceNft('foret', 'commun')
     const cap = config.resourceNfts.levelCapByRarity.commun
     useGameStore.setState((state) => ({
       resourceNfts: state.resourceNfts.map((n) => ({ ...n, level: cap })),
@@ -143,7 +143,7 @@ describe('fuseResourceNftItems', () => {
 
     const after = useGameStore.getState().resourceNfts
     expect(after).toHaveLength(1)
-    expect(after[0]).toMatchObject({ templateId: 'foret_peu_commun', level: 0 })
+    expect(after[0]).toMatchObject({ templateId: 'foret', rarity: 'peu_commun', level: 0 })
   })
 })
 

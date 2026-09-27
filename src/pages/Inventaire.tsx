@@ -94,13 +94,13 @@ export default function Inventaire() {
               >
                 <div>
                   <span className="font-medium">{template?.name ?? nft.templateId}</span>
-                  <span className={`ml-2 text-xs ${template ? equipmentRarityColor[template.rarity] : ''}`}>
-                    {template?.rarity} · {template ? zones[template.zoneId].name : ''}
+                  <span className={`ml-2 text-xs ${equipmentRarityColor[nft.rarity]}`}>
+                    {nft.rarity} · {template ? zones[template.zoneId].name : ''}
                   </span>
                 </div>
                 <span className="text-xs text-neutral-500">
                   Niveau {nft.level}
-                  {template && <span className="text-neutral-600"> / {nftLevelCap(template)}</span>}
+                  <span className="text-neutral-600"> / {nftLevelCap(nft.rarity)}</span>
                 </span>
               </div>
             )
