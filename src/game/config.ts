@@ -3,6 +3,7 @@ import type {
   Rarity,
   Recipe,
   ResourceDef,
+  ResourceNftTemplate,
   SmeltingRecipe,
   ZoneId,
 } from './types'
@@ -94,23 +95,49 @@ export const config = {
   },
 
   missions: {
-    /** Points d'Énergie du héros nécessaires pour ouvrir un slot de mission simultané. */
-    energyPerSlot: 20,
-    minConcurrentSlots: 1,
-    maxConcurrentSlots: 5,
+    /**
+     * Multiplicateur de rendement (ressources ET xp du NFT) par durée — courbe convexe calée sur
+     * l'exemple donné (1h → ×1, 2h → ×2,5) : multiplicateur(h) = h^1,32.
+     */
     durations: {
-      courte: { hours: 1, yieldMultiplier: 1, rareChanceBonus: 0 },
-      moyenne: { hours: 4, yieldMultiplier: 2.5, rareChanceBonus: 0.05 },
-      longue: { hours: 8, yieldMultiplier: 4.5, rareChanceBonus: 0.1 },
-      expedition: { hours: 24, yieldMultiplier: 10, rareChanceBonus: 0.2 },
-    } satisfies Record<MissionDurationId, { hours: number; yieldMultiplier: number; rareChanceBonus: number }>,
-    /** Chance de base d'obtenir une ressource rare de la zone, avant bonus de durée/Chance. */
-    baseRareChance: 0.1,
-    /** Chance ajoutée par point de Chance du héros (plafonnée). */
-    luckRareChancePerPoint: 0.002,
-    maxRareChance: 0.6,
-    /** Ressources communes obtenues par mission (avant multiplicateur de durée). */
-    baseCommonYield: 3,
+      courte: { hours: 1, yieldMultiplier: 1 },
+      moyenne: { hours: 4, yieldMultiplier: 6.25 },
+      longue: { hours: 8, yieldMultiplier: 15.6 },
+      expedition: { hours: 24, yieldMultiplier: 66.8 },
+    } satisfies Record<MissionDurationId, { hours: number; yieldMultiplier: number }>,
+    /** Nombre de ressources DIFFÉRENTES ramenées par mission (tirées sans remise parmi les rangs accessibles). */
+    yieldTypesRange: [1, 3] as [number, number],
+    /**
+     * Poids de tirage et quantité de base par rang (1 = le plus commun de la zone, 5 = le plus
+     * rare) : décroissance linéaire douce, sans gros écart d'un rang à l'autre.
+     */
+    weightByRank: (rank: number) => 6 - rank,
+    baseQuantityByRank: (rank: number) => 6 - rank,
+  },
+
+  resourceNfts: {
+    /** Niveau maximum d'un NFT d'exploration selon sa rareté (verrou de fusion). */
+    levelCapByRarity: {
+      commun: 10,
+      peu_commun: 15,
+      rare: 20,
+      epique: 25,
+      legendaire: 30,
+    } satisfies Record<Rarity, number>,
+    /** Multiplicateur de rendement au niveau 1, selon la rareté. */
+    baseYieldByRarity: {
+      commun: 1,
+      peu_commun: 1.25,
+      rare: 1.5,
+      epique: 1.75,
+      legendaire: 2,
+    } satisfies Record<Rarity, number>,
+    /** Croissance du rendement par niveau, au-delà du niveau 1 (exponentielle : ×(1+x) par niveau). */
+    levelYieldGrowth: 0.1,
+    /** XP cumulé pour atteindre `level` (écarts croissants, plus petite échelle que les héros). */
+    xpForLevel: (level: number) => level * 200 + 50 * level * (level - 1),
+    /** XP de base gagné par mission accomplie (avant multiplicateur de durée), quelle que soit la rareté. */
+    baseXpPerMission: 50,
   },
 
   combat: {
@@ -119,37 +146,82 @@ export const config = {
   },
 } as const
 
+/**
+ * Ressources de chaque zone, classées du rang 1 (la plus commune, la plus abondante) au rang 5
+ * (la plus rare). Aucune ressource n'est partagée entre deux zones. Le rang d'un NFT
+ * d'exploration (voir resourceNftTemplates) plafonne à quels rangs il peut accéder dans sa zone.
+ */
 export const zones: Record<ZoneId, {
   name: string
-  recommendedLevel: number
   resourceIds: string[]
 }> = {
-  foret: { name: 'Forêt', recommendedLevel: 0, resourceIds: ['bois', 'herbes', 'cuir'] },
-  mine: { name: 'Mine', recommendedLevel: 5, resourceIds: ['minerai_fer', 'pierre', 'cristal'] },
-  marais: { name: 'Marais', resourceIds: ['ecailles', 'os_monstre', 'herbes'], recommendedLevel: 15 },
-  volcan: { name: 'Volcan', recommendedLevel: 30, resourceIds: ['essence_feu', 'mithril', 'coeur_dragon'] },
+  foret: { name: 'Forêt', resourceIds: ['bois', 'herbes', 'cuir', 'seve_ambree', 'graine_sequoia'] },
+  mine: { name: 'Mine', resourceIds: ['minerai_fer', 'pierre', 'cristal', 'essence_glace', 'fragment_etoile'] },
+  marais: { name: 'Marais', resourceIds: ['ecailles', 'os_monstre', 'boue_fertile', 'essence_foudre', 'perle_noire'] },
+  volcan: { name: 'Volcan', resourceIds: ['cendre_volcanique', 'essence_feu', 'plume_phenix', 'mithril', 'coeur_dragon'] },
 }
 
+/**
+ * Gabarits des NFT d'exploration : un par (zone × rareté), 5 rangs par zone, comme l'équipement.
+ * Un héros ne peut jamais faire de mission — il faut posséder le NFT de la zone visée.
+ */
+export const resourceNftTemplates: ResourceNftTemplate[] = [
+  { id: 'foret_commun', name: 'Bûcheron novice', zoneId: 'foret', rarity: 'commun' },
+  { id: 'foret_peu_commun', name: 'Éclaireur des bois', zoneId: 'foret', rarity: 'peu_commun' },
+  { id: 'foret_rare', name: 'Ranger sylvestre', zoneId: 'foret', rarity: 'rare' },
+  { id: 'foret_epique', name: 'Gardien de la canopée', zoneId: 'foret', rarity: 'epique' },
+  { id: 'foret_legendaire', name: 'Esprit de la forêt ancienne', zoneId: 'foret', rarity: 'legendaire' },
+
+  { id: 'mine_commun', name: 'Mineur novice', zoneId: 'mine', rarity: 'commun' },
+  { id: 'mine_peu_commun', name: 'Prospecteur', zoneId: 'mine', rarity: 'peu_commun' },
+  { id: 'mine_rare', name: 'Foreur expérimenté', zoneId: 'mine', rarity: 'rare' },
+  { id: 'mine_epique', name: 'Maître mineur', zoneId: 'mine', rarity: 'epique' },
+  { id: 'mine_legendaire', name: 'Golem des profondeurs', zoneId: 'mine', rarity: 'legendaire' },
+
+  { id: 'marais_commun', name: 'Piégeur novice', zoneId: 'marais', rarity: 'commun' },
+  { id: 'marais_peu_commun', name: 'Pisteur des marais', zoneId: 'marais', rarity: 'peu_commun' },
+  { id: 'marais_rare', name: 'Chasseur de créatures', zoneId: 'marais', rarity: 'rare' },
+  { id: 'marais_epique', name: 'Traqueur redouté', zoneId: 'marais', rarity: 'epique' },
+  { id: 'marais_legendaire', name: 'Ombre du marécage', zoneId: 'marais', rarity: 'legendaire' },
+
+  { id: 'volcan_commun', name: 'Éclaireur volcanique', zoneId: 'volcan', rarity: 'commun' },
+  { id: 'volcan_peu_commun', name: 'Arpenteur de cendres', zoneId: 'volcan', rarity: 'peu_commun' },
+  { id: 'volcan_rare', name: 'Coureur de lave', zoneId: 'volcan', rarity: 'rare' },
+  { id: 'volcan_epique', name: 'Dompteur de flammes', zoneId: 'volcan', rarity: 'epique' },
+  { id: 'volcan_legendaire', name: 'Héraut du volcan', zoneId: 'volcan', rarity: 'legendaire' },
+]
+
 export const resources: ResourceDef[] = [
+  // Forêt
   { id: 'bois', name: 'Bois', rarity: 'commune' },
-  { id: 'minerai_fer', name: 'Minerai de fer', rarity: 'commune' },
-  { id: 'cuir', name: 'Cuir', rarity: 'commune' },
-  { id: 'pierre', name: 'Pierre', rarity: 'commune' },
-
-  { id: 'acier', name: 'Acier', rarity: 'peu_commune' },
-  { id: 'ecailles', name: 'Écailles', rarity: 'peu_commune' },
   { id: 'herbes', name: 'Herbes', rarity: 'peu_commune' },
-  { id: 'os_monstre', name: 'Os de monstre', rarity: 'peu_commune' },
+  { id: 'cuir', name: 'Cuir', rarity: 'rare' },
+  { id: 'seve_ambree', name: 'Sève ambrée', rarity: 'epique' },
+  { id: 'graine_sequoia', name: 'Graine de séquoia millénaire', rarity: 'legendaire' },
 
+  // Mine
+  { id: 'minerai_fer', name: 'Minerai de fer', rarity: 'commune' },
+  { id: 'pierre', name: 'Pierre', rarity: 'peu_commune' },
   { id: 'cristal', name: 'Cristal', rarity: 'rare' },
-  { id: 'mithril', name: 'Mithril', rarity: 'rare' },
-  { id: 'plume_phenix', name: 'Plume de phénix', rarity: 'rare' },
-  { id: 'essence_feu', name: 'Essence de feu', rarity: 'rare' },
-  { id: 'essence_glace', name: 'Essence de glace', rarity: 'rare' },
-  { id: 'essence_foudre', name: 'Essence de foudre', rarity: 'rare' },
-
-  { id: 'coeur_dragon', name: 'Cœur de dragon', rarity: 'legendaire' },
+  { id: 'essence_glace', name: 'Essence de glace', rarity: 'epique' },
   { id: 'fragment_etoile', name: "Fragment d'étoile", rarity: 'legendaire' },
+
+  // Marais
+  { id: 'ecailles', name: 'Écailles', rarity: 'commune' },
+  { id: 'os_monstre', name: 'Os de monstre', rarity: 'peu_commune' },
+  { id: 'boue_fertile', name: 'Boue fertile', rarity: 'rare' },
+  { id: 'essence_foudre', name: 'Essence de foudre', rarity: 'epique' },
+  { id: 'perle_noire', name: 'Perle noire', rarity: 'legendaire' },
+
+  // Volcan
+  { id: 'cendre_volcanique', name: 'Cendre volcanique', rarity: 'commune' },
+  { id: 'essence_feu', name: 'Essence de feu', rarity: 'peu_commune' },
+  { id: 'plume_phenix', name: 'Plume de phénix', rarity: 'rare' },
+  { id: 'mithril', name: 'Mithril', rarity: 'epique' },
+  { id: 'coeur_dragon', name: 'Cœur de dragon', rarity: 'legendaire' },
+
+  // Fonte uniquement (jamais trouvé en mission)
+  { id: 'acier', name: 'Acier', rarity: 'peu_commune' },
 ]
 
 export const smeltingRecipes: SmeltingRecipe[] = [

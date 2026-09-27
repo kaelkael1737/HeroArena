@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { config, recipes, resources as resourceDefs } from './config'
+import { config, recipes, resourceNftTemplates, resources as resourceDefs } from './config'
 import { getEffectiveAttributes } from './logic/attributes'
 import { resolveCombat } from './logic/combat'
 import type { CombatantInput } from './logic/combat'
@@ -8,7 +8,7 @@ import { craft, smelt } from './logic/crafting'
 import { canFuseEquipment, canUpgradeEquipment, fuseEquipment, upgradeEquipment } from './logic/equipment'
 import { generateHero } from './logic/heroGenerator'
 import {
-  canStartMission,
+  isNftFree,
   isMissionComplete,
   resolveMission,
   startMission as startMissionLogic,
@@ -25,6 +25,13 @@ import {
   respawnMonster,
 } from './logic/raid'
 import { generateBots } from './logic/raidBots'
+import {
+  applyNftXpGain,
+  canFuseResourceNfts,
+  findResourceNftTemplate,
+  fuseResourceNfts,
+  nftLevelCap,
+} from './logic/resourceNfts'
 import { createRng, hashString } from './logic/rng'
 import { applyXpGain } from './logic/xp'
 import { heroes as startingHeroes } from './data/heroes'
@@ -37,7 +44,7 @@ import type {
   MissionInProgress,
   Monster,
   RaidBot,
-  ZoneId,
+  ResourceNft,
 } from './types'
 
 export const LOCAL_PLAYER_ID = 'moi'
@@ -49,6 +56,7 @@ interface GameState {
   equipmentInventory: EquipmentItem[]
   equippedByHero: Record<string, Partial<Record<EquipmentSlot, string>>>
   missions: MissionInProgress[]
+  resourceNfts: ResourceNft[]
   clockRunning: boolean
   clockSpeed: number
 
@@ -61,8 +69,10 @@ interface GameState {
   getEquippedItems: (heroId: string) => EquipmentItem[]
   getEffectiveAttributes: (heroId: string) => HeroAttributes | undefined
 
-  startMission: (heroId: string, zoneId: ZoneId, durationId: MissionDurationId) => void
+  addResourceNft: (templateId: string) => void
+  startMission: (nftId: string, durationId: MissionDurationId) => void
   claimMission: (missionId: string) => void
+  fuseResourceNftItems: (instanceIds: string[]) => void
   craftItem: (recipeId: string) => void
   smeltResource: (smeltingRecipeId: string) => void
   equipItem: (heroId: string, instanceId: string) => void
@@ -100,6 +110,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   equipmentInventory: [],
   equippedByHero: {},
   missions: [],
+  resourceNfts: [],
   clockRunning: true,
   clockSpeed: 500,
 
@@ -126,13 +137,18 @@ export const useGameStore = create<GameState>((set, get) => ({
     return getEffectiveAttributes(hero, state.getEquippedItems(heroId))
   },
 
-  startMission: (heroId, zoneId, durationId) => {
+  addResourceNft: (templateId) => {
+    const template = resourceNftTemplates.find((t) => t.id === templateId)
+    if (!template) return
+    const nft: ResourceNft = { instanceId: crypto.randomUUID(), templateId, level: 0, xp: 0 }
+    set((state) => ({ resourceNfts: [...state.resourceNfts, nft] }))
+  },
+
+  startMission: (nftId, durationId) => {
     const state = get()
-    const hero = state.getHero(heroId)
-    if (!hero) return
-    const activeForHero = state.missions.filter((m) => m.heroId === heroId && !m.claimed)
-    if (!canStartMission(hero, activeForHero)) return
-    const mission = startMissionLogic(hero, zoneId, durationId, state.now)
+    const nft = state.resourceNfts.find((n) => n.instanceId === nftId)
+    if (!nft || !isNftFree(nftId, state.missions)) return
+    const mission = startMissionLogic(nft, durationId, state.now)
     set({ missions: [...state.missions, mission] })
   },
 
@@ -140,15 +156,30 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get()
     const mission = state.missions.find((m) => m.id === missionId)
     if (!mission || mission.claimed || !isMissionComplete(mission, state.now)) return
-    const hero = state.getHero(mission.heroId)
-    if (!hero) return
+    const nft = state.resourceNfts.find((n) => n.instanceId === mission.nftId)
+    if (!nft) return
 
     const rng = createRng(mission.startedAt + hashString(mission.id))
-    const rewards = resolveMission(hero, mission, rng)
+    const rewards = resolveMission(nft, mission, rng)
+    const template = findResourceNftTemplate(nft.templateId)
+    const xpResult = applyNftXpGain(nft, rewards.xpGained, nftLevelCap(template))
 
     set({
       resources: mergeResources(state.resources, rewards.resources),
+      resourceNfts: state.resourceNfts.map((n) => (n.instanceId === nft.instanceId ? xpResult.nft : n)),
       missions: state.missions.map((m) => (m.id === missionId ? { ...m, claimed: true } : m)),
+    })
+  },
+
+  fuseResourceNftItems: (instanceIds) => {
+    const state = get()
+    const items = instanceIds
+      .map((id) => state.resourceNfts.find((n) => n.instanceId === id))
+      .filter((n): n is ResourceNft => Boolean(n))
+    if (items.length !== instanceIds.length || !canFuseResourceNfts(items)) return
+    const fused = fuseResourceNfts(items)
+    set({
+      resourceNfts: [...state.resourceNfts.filter((n) => !instanceIds.includes(n.instanceId)), fused],
     })
   },
 

@@ -43,7 +43,7 @@ export interface Hero {
   history: HeroHistory
 }
 
-export type ResourceRarity = 'commune' | 'peu_commune' | 'rare' | 'legendaire'
+export type ResourceRarity = 'commune' | 'peu_commune' | 'rare' | 'epique' | 'legendaire'
 
 export interface ResourceDef {
   id: string
@@ -90,12 +90,30 @@ export interface EquipmentItem {
 
 export type ZoneId = 'foret' | 'mine' | 'marais' | 'volcan'
 
+/**
+ * Gabarit d'un NFT d'exploration pour une zone et une rareté données (le "mint" de départ,
+ * niveau 1). Un héros ne peut jamais faire de mission : il faut posséder le NFT de la zone.
+ */
+export interface ResourceNftTemplate {
+  id: string
+  name: string
+  zoneId: ZoneId
+  rarity: Rarity
+}
+
+/** Un NFT d'exploration possédé : permanent, monte de niveau en accomplissant des missions. */
+export interface ResourceNft {
+  instanceId: string
+  templateId: string
+  level: number
+  xp: number
+}
+
 export type MissionDurationId = 'courte' | 'moyenne' | 'longue' | 'expedition'
 
 export interface MissionInProgress {
   id: string
-  heroId: string
-  zoneId: ZoneId
+  nftId: string
   durationId: MissionDurationId
   startedAt: number
   endsAt: number

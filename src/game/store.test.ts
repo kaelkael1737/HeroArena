@@ -98,21 +98,52 @@ describe('fuseHeroes', () => {
   })
 })
 
-describe('claimMission', () => {
-  it("donne des ressources mais aucune XP (seul le raid fait progresser un héros)", () => {
-    const state = useGameStore.getState()
-    const hero = state.heroes[0]
-    state.startMission(hero.permanent.id, 'foret', 'courte')
+describe('addResourceNft / startMission / claimMission', () => {
+  it("un héros ne peut jamais faire de mission : les missions se font uniquement via un NFT d'exploration", () => {
+    useGameStore.getState().addResourceNft('foret_commun')
+    const nft = useGameStore.getState().resourceNfts[0]
+
+    useGameStore.getState().startMission(nft.instanceId, 'courte')
     const mission = useGameStore.getState().missions[0]
-    state.finishMissionInstantly(mission.id)
-    state.claimMission(mission.id)
+    expect(mission.nftId).toBe(nft.instanceId)
+
+    useGameStore.getState().finishMissionInstantly(mission.id)
+    useGameStore.getState().claimMission(mission.id)
 
     const resources = useGameStore.getState().resources
     const totalResources = Object.values(resources).reduce((a, b) => a + b, 0)
     expect(totalResources).toBeGreaterThan(0)
 
-    const updatedHero = useGameStore.getState().getHero(hero.permanent.id)!
-    expect(updatedHero.progression).toEqual(hero.progression)
+    const updatedNft = useGameStore.getState().resourceNfts[0]
+    expect(updatedNft.xp).toBeGreaterThan(0)
+
+    // aucun héros n'est jamais impliqué ni modifié
+    const heroesBefore = useGameStore.getInitialState().heroes
+    expect(useGameStore.getState().heroes).toEqual(heroesBefore)
+  })
+
+  it("refuse de démarrer une seconde mission sur un NFT déjà occupé", () => {
+    useGameStore.getState().addResourceNft('mine_commun')
+    const nft = useGameStore.getState().resourceNfts[0]
+    useGameStore.getState().startMission(nft.instanceId, 'courte')
+    useGameStore.getState().startMission(nft.instanceId, 'courte')
+    expect(useGameStore.getState().missions).toHaveLength(1)
+  })
+})
+
+describe('fuseResourceNftItems', () => {
+  it("fusionne 3 NFT communs de la même zone en 1 NFT peu commun", () => {
+    for (let i = 0; i < 3; i += 1) useGameStore.getState().addResourceNft('foret_commun')
+    const cap = config.resourceNfts.levelCapByRarity.commun
+    useGameStore.setState((state) => ({
+      resourceNfts: state.resourceNfts.map((n) => ({ ...n, level: cap })),
+    }))
+    const ids = useGameStore.getState().resourceNfts.map((n) => n.instanceId)
+    useGameStore.getState().fuseResourceNftItems(ids)
+
+    const after = useGameStore.getState().resourceNfts
+    expect(after).toHaveLength(1)
+    expect(after[0]).toMatchObject({ templateId: 'foret_peu_commun', level: 0 })
   })
 })
 

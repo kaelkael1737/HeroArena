@@ -1,4 +1,5 @@
-import { config, recipes, resources } from '../game/config'
+import { config, recipes, resourceNftTemplates, resources, zones } from '../game/config'
+import { nftLevelCap } from '../game/logic/resourceNfts'
 import { useGameStore } from '../game/store'
 import { Panel } from '../ui/Panel'
 
@@ -6,6 +7,7 @@ const rarityColor: Record<string, string> = {
   commune: 'text-neutral-300',
   peu_commune: 'text-emerald-400',
   rare: 'text-sky-400',
+  epique: 'text-purple-400',
   legendaire: 'text-amber-400',
 }
 
@@ -21,6 +23,7 @@ export default function Inventaire() {
   const resourceStock = useGameStore((s) => s.resources)
   const equipment = useGameStore((s) => s.equipmentInventory)
   const equippedByHero = useGameStore((s) => s.equippedByHero)
+  const resourceNfts = useGameStore((s) => s.resourceNfts)
 
   const equippedInstanceIds = new Set(
     Object.values(equippedByHero).flatMap((slots) => Object.values(slots).filter(Boolean)),
@@ -70,6 +73,35 @@ export default function Inventaire() {
                   </span>
                   {isEquipped && <span className="text-amber-400">Équipé</span>}
                 </div>
+              </div>
+            )
+          })}
+        </div>
+      </Panel>
+
+      <Panel title="NFT d'exploration">
+        <p className="mb-3 text-sm text-neutral-500">
+          Se gèrent depuis Missions (mission, fusion). Un héros ne peut jamais les remplacer.
+        </p>
+        {resourceNfts.length === 0 && <p className="text-neutral-500">Aucun NFT d'exploration possédé.</p>}
+        <div className="space-y-2">
+          {resourceNfts.map((nft) => {
+            const template = resourceNftTemplates.find((t) => t.id === nft.templateId)
+            return (
+              <div
+                key={nft.instanceId}
+                className="flex items-center justify-between rounded-md border border-neutral-800 px-3 py-2 text-sm"
+              >
+                <div>
+                  <span className="font-medium">{template?.name ?? nft.templateId}</span>
+                  <span className={`ml-2 text-xs ${template ? equipmentRarityColor[template.rarity] : ''}`}>
+                    {template?.rarity} · {template ? zones[template.zoneId].name : ''}
+                  </span>
+                </div>
+                <span className="text-xs text-neutral-500">
+                  Niveau {nft.level}
+                  {template && <span className="text-neutral-600"> / {nftLevelCap(template)}</span>}
+                </span>
               </div>
             )
           })}

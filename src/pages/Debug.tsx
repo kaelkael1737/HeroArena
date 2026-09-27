@@ -1,4 +1,4 @@
-import { zones } from '../game/config'
+import { resourceNftTemplates, zones } from '../game/config'
 import { useGameStore } from '../game/store'
 import { Button, Panel } from '../ui/Panel'
 
@@ -15,7 +15,7 @@ const rarityLabels: Record<string, string> = {
 export default function Debug() {
   const now = useGameStore((s) => s.now)
   const missions = useGameStore((s) => s.missions)
-  const heroes = useGameStore((s) => s.heroes)
+  const resourceNfts = useGameStore((s) => s.resourceNfts)
   const clockRunning = useGameStore((s) => s.clockRunning)
   const clockSpeed = useGameStore((s) => s.clockSpeed)
   const setClockRunning = useGameStore((s) => s.setClockRunning)
@@ -56,16 +56,20 @@ export default function Debug() {
       <Panel title="Missions en cours">
         {activeMissions.length === 0 && <p className="text-neutral-500">Aucune mission active.</p>}
         <div className="space-y-2">
-          {activeMissions.map((m) => (
+          {activeMissions.map((m) => {
+            const nft = resourceNfts.find((n) => n.instanceId === m.nftId)
+            const template = nft ? resourceNftTemplates.find((t) => t.id === nft.templateId) : undefined
+            return (
             <div key={m.id} className="flex items-center justify-between rounded-md border border-neutral-800 px-3 py-2 text-sm">
               <span>
-                {heroes.find((h) => h.permanent.id === m.heroId)?.permanent.name ?? m.heroId} — {zones[m.zoneId].name}
+                {template?.name ?? m.nftId} — {template ? zones[template.zoneId].name : ''}
               </span>
               <Button variant="secondary" onClick={() => finishMissionInstantly(m.id)}>
                 Terminer instantanément
               </Button>
             </div>
-          ))}
+            )
+          })}
         </div>
       </Panel>
 
