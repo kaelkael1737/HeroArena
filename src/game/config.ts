@@ -36,13 +36,13 @@ export const config = {
       epique: 45,
       legendaire: 60,
     } satisfies Record<Rarity, number>,
-    /** Fourchette de la somme des attributs de base à la création (cahier des charges §4). */
+    /** Fourchette de la somme des attributs de base à la création. Écart ×~1,7 par palier, ×9 entre commun et légendaire. */
     attributeSumRangeByRarity: {
       commun: [50, 70],
-      peu_commun: [70, 90],
-      rare: [90, 115],
-      epique: [115, 140],
-      legendaire: [150, 170],
+      peu_commun: [90, 120],
+      rare: [160, 210],
+      epique: [280, 360],
+      legendaire: [480, 600],
     } satisfies Record<Rarity, [number, number]>,
   },
 
