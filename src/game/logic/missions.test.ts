@@ -45,24 +45,30 @@ describe('resolveMission', () => {
     }
   })
 
-  it("un NFT commun ne ramène JAMAIS autre chose que la ressource de rang 1 de sa zone", () => {
+  it("un NFT commun PEUT ramener n'importe quel rang de sa zone (jamais bloqué)", () => {
     const nft = makeResourceNft({ templateId: 'foret', rarity: 'commun' })
     const mission = startMission(nft, 'expedition', 0, () => 'm1')
-    for (let seed = 0; seed < 50; seed += 1) {
-      const result = resolveMission(nft, mission, createRng(seed))
-      expect(Object.keys(result.resources)).toEqual(['bois'])
-    }
-  })
-
-  it('un NFT légendaire peut ramener les 5 rangs de sa zone (sur assez de tirages)', () => {
-    const nft = makeResourceNft({ templateId: 'mine', rarity: 'legendaire' })
-    const mission = startMission(nft, 'expedition', 0, () => 'm1')
     const seen = new Set<string>()
-    for (let seed = 0; seed < 200; seed += 1) {
+    for (let seed = 0; seed < 300; seed += 1) {
       const result = resolveMission(nft, mission, createRng(seed))
       for (const id of Object.keys(result.resources)) seen.add(id)
     }
-    expect(seen).toEqual(new Set(['minerai_fer', 'pierre', 'cristal', 'essence_glace', 'fragment_etoile']))
+    expect(seen).toEqual(new Set(['bois', 'herbes', 'cuir', 'seve_ambree', 'graine_sequoia']))
+  })
+
+  it('un NFT légendaire tombe beaucoup plus souvent sur le rang 5 qu\'un commun', () => {
+    const commun = makeResourceNft({ templateId: 'mine', rarity: 'commun' })
+    const legendaire = makeResourceNft({ templateId: 'mine', rarity: 'legendaire' })
+    const mission = startMission(commun, 'expedition', 0, () => 'm1')
+
+    let communHits = 0
+    let legendaireHits = 0
+    const trials = 300
+    for (let seed = 0; seed < trials; seed += 1) {
+      if (resolveMission(commun, mission, createRng(seed)).resources.fragment_etoile) communHits += 1
+      if (resolveMission(legendaire, mission, createRng(seed)).resources.fragment_etoile) legendaireHits += 1
+    }
+    expect(legendaireHits).toBeGreaterThan(communHits * 2)
   })
 
   it('un NFT de la mine ne donne jamais une ressource d\'une autre zone', () => {

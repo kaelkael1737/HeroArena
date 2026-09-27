@@ -48,12 +48,15 @@ export function nftYieldMultiplier(rarity: Rarity, level: number): number {
 }
 
 /**
- * Rang maximum (1 à 5) de ressource de zone accessible à cette rareté : un commun ne trouve que
- * la ressource la plus commune de sa zone, un légendaire les 5. C'est "l'atout" propre à chaque
- * rareté, en plus du niveau qui augmente la quantité récoltée.
+ * Poids de tirage d'un rang de ressource pour cette rareté : tous les rangs restent accessibles
+ * à toutes les raretés (un commun peut trouver la ressource légendaire de sa zone), mais une
+ * rareté plus élevée a une bien meilleure chance de tomber sur les rangs élevés. Le rang 1 (le
+ * plus commun) n'est jamais boosté : sa probabilité de base ne change pas avec la rareté.
  */
-export function maxResourceRankForRarity(rarity: Rarity): number {
-  return rarityRank(rarity) + 1
+export function resourceRankWeight(rank: number, rarity: Rarity): number {
+  const base = config.missions.weightByRank(rank)
+  const boost = 1 + rarityRank(rarity) * (rank - 1) * config.missions.rarityRankBoost
+  return base * boost
 }
 
 /** Même gabarit (zone) et même rareté, tous au niveau max de cette rareté. */

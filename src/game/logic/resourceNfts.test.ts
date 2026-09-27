@@ -4,20 +4,28 @@ import {
   applyNftXpGain,
   canFuseResourceNfts,
   fuseResourceNfts,
-  maxResourceRankForRarity,
   nftLevelCap,
   nftYieldMultiplier,
+  resourceRankWeight,
   xpRequiredForNftLevel,
 } from './resourceNfts'
 import { makeResourceNft } from './fixtures'
 
-describe('maxResourceRankForRarity', () => {
-  it('un commun n\'accède qu\'au rang 1, un légendaire aux 5', () => {
-    expect(maxResourceRankForRarity('commun')).toBe(1)
-    expect(maxResourceRankForRarity('peu_commun')).toBe(2)
-    expect(maxResourceRankForRarity('rare')).toBe(3)
-    expect(maxResourceRankForRarity('epique')).toBe(4)
-    expect(maxResourceRankForRarity('legendaire')).toBe(5)
+describe('resourceRankWeight', () => {
+  it('ne change jamais le poids du rang 1, quelle que soit la rareté', () => {
+    for (const rarity of ['commun', 'peu_commun', 'rare', 'epique', 'legendaire'] as const) {
+      expect(resourceRankWeight(1, rarity)).toBe(config.missions.weightByRank(1))
+    }
+  })
+
+  it('booste le poids des rangs élevés davantage pour une rareté élevée', () => {
+    const communRank5 = resourceRankWeight(5, 'commun')
+    const legendaireRank5 = resourceRankWeight(5, 'legendaire')
+    expect(legendaireRank5).toBeGreaterThan(communRank5)
+  })
+
+  it('reste strictement positif même au rang 5 pour un commun (jamais totalement bloqué)', () => {
+    expect(resourceRankWeight(5, 'commun')).toBeGreaterThan(0)
   })
 })
 

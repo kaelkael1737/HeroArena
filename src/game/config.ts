@@ -105,7 +105,7 @@ export const config = {
       longue: { hours: 8, yieldMultiplier: 15.6 },
       expedition: { hours: 24, yieldMultiplier: 66.8 },
     } satisfies Record<MissionDurationId, { hours: number; yieldMultiplier: number }>,
-    /** Nombre de ressources DIFFÉRENTES ramenées par mission (tirées sans remise parmi les rangs accessibles). */
+    /** Nombre de ressources DIFFÉRENTES ramenées par mission (tirées sans remise parmi les 5 rangs de la zone). */
     yieldTypesRange: [1, 3] as [number, number],
     /**
      * Poids de tirage et quantité de base par rang (1 = le plus commun de la zone, 5 = le plus
@@ -113,6 +113,12 @@ export const config = {
      */
     weightByRank: (rank: number) => 6 - rank,
     baseQuantityByRank: (rank: number) => 6 - rank,
+    /**
+     * Tous les rangs restent accessibles à toutes les raretés (un commun PEUT trouver la
+     * ressource légendaire de sa zone) ; ce facteur augmente juste la CHANCE d'y tomber pour les
+     * raretés élevées (voir resourceRankWeight), sans jamais toucher le rang 1.
+     */
+    rarityRankBoost: 0.5,
   },
 
   resourceNfts: {

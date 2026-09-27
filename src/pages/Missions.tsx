@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { config, resourceNftTemplates, resources, zones } from '../game/config'
 import { isNftFree } from '../game/logic/missions'
 import { nextRarity } from '../game/logic/rarity'
-import { maxResourceRankForRarity, nftLevelCap } from '../game/logic/resourceNfts'
+import { nftLevelCap } from '../game/logic/resourceNfts'
 import { useGameStore } from '../game/store'
 import type { MissionDurationId, MissionInProgress, Rarity, ResourceNft, ResourceNftTemplate } from '../game/types'
 import { Button, Panel } from '../ui/Panel'
@@ -139,7 +139,6 @@ function NftCard({ nft, missions }: { nft: ResourceNft; missions: MissionInProgr
   const template = templateFor(nft.templateId)
   if (!template) return null
 
-  const accessibleIds = zones[template.zoneId].resourceIds.slice(0, maxResourceRankForRarity(nft.rarity))
   const activeMission = missions.find((m) => m.nftId === nft.instanceId && !m.claimed)
   const free = isNftFree(nft.instanceId, missions)
   const done = activeMission ? activeMission.endsAt <= now : false
@@ -155,7 +154,8 @@ function NftCard({ nft, missions }: { nft: ResourceNft; missions: MissionInProgr
         </span>
       </div>
       <p className="mt-1 text-xs text-neutral-500">
-        Ressources accessibles : {accessibleIds.map(resourceName).join(', ')}
+        Ressources de la zone (du plus commun au plus rare) : {zones[template.zoneId].resourceIds.map(resourceName).join(', ')}
+        {' '}— plus la rareté est élevée, meilleure est la chance de tomber sur les rangs rares (jamais garanti, ni bloqué).
       </p>
 
       <div className="mt-2 flex items-center justify-between">

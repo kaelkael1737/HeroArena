@@ -1,6 +1,6 @@
 import { config, zones } from '../config'
 import type { MissionDurationId, MissionInProgress, ResourceNft } from '../types'
-import { findResourceNftTemplate, maxResourceRankForRarity, nftYieldMultiplier } from './resourceNfts'
+import { findResourceNftTemplate, nftYieldMultiplier, resourceRankWeight } from './resourceNfts'
 import { randomInt } from './rng'
 
 /** Un NFT d'exploration ne peut faire qu'une mission à la fois. */
@@ -57,10 +57,11 @@ function pickDistinctWeighted(pool: { id: string; weight: number }[], count: num
 
 /**
  * Calcule les récompenses d'une mission terminée : entre 1 et 3 ressources DIFFÉRENTES de la
- * zone du NFT (jamais partagées avec une autre zone), tirées parmi les rangs accessibles à sa
- * rareté (rang 1 = le plus commun ; un commun n'accède qu'au rang 1, un légendaire aux 5). Plus
- * le rang est élevé, moins la ressource est probable et moins elle est abondante par tirage.
- * Le niveau du NFT et la durée de la mission multiplient la quantité. Donne aussi de l'XP au NFT.
+ * zone du NFT (jamais partagées avec une autre zone), tirées parmi les 5 rangs de la zone —
+ * TOUS accessibles à toute rareté (un commun peut trouver la ressource légendaire de sa zone),
+ * mais une rareté élevée a une bien meilleure CHANCE de tomber sur les rangs élevés (voir
+ * resourceRankWeight). Le niveau et la rareté du NFT, ainsi que la durée de la mission,
+ * multiplient la QUANTITÉ récoltée. Donne aussi de l'XP au NFT.
  */
 export function resolveMission(
   nft: ResourceNft,
@@ -72,9 +73,7 @@ export function resolveMission(
   const duration = config.missions.durations[mission.durationId]
   const levelYield = nftYieldMultiplier(nft.rarity, nft.level)
 
-  const maxRank = maxResourceRankForRarity(nft.rarity)
-  const accessibleIds = zone.resourceIds.slice(0, maxRank)
-  const pool = accessibleIds.map((id, i) => ({ id, weight: config.missions.weightByRank(i + 1) }))
+  const pool = zone.resourceIds.map((id, i) => ({ id, weight: resourceRankWeight(i + 1, nft.rarity) }))
 
   const [minTypes, maxTypes] = config.missions.yieldTypesRange
   const numTypes = Math.min(pool.length, randomInt(rng, minTypes, maxTypes))
